@@ -3212,31 +3212,25 @@ function _doApproveOrd(id) {
     if (esPaquete) {
       var pkNew = RANGOS[newPkg] || RANGOS[af.pkg] || {};
       var isExtraPaq = o.items.some(function(it){ return it._extra === true; });
-      var isUpgrade = !isExtraPaq && af.paquetePagado && newPkg && newPkg !== af.pkg;
       var baseCalculo = Math.max(0, pkNew.price || o.total);
 
-      // Solo actualizar si el afiliado NO está activo aún (pedidos de versión antigua)
-      // Para pedidos nuevos, ya fue activado en submitOrder
-      if (!af.paquetePagado) {
-        upd.paquete_pagado = true;
-        upd.activo = true;
-        upd.pkg = newPkg || af.pkg;
-        upd.puntos = (af.puntos||0) + Math.floor(baseCalculo / PTS_RATIO);
-        upd.acumulado = (af.acumulado||0) + o.total;
-        upd.bono_ir_recibido = true;
-        if (af.tipo === 'promotor') upd.tipo = 'afiliado';
-      } else if (isUpgrade) {
-        // Upgrade de rango
-        upd.pkg = newPkg;
-        upd.pkg_anterior = af.pkg;
-        upd.fecha_upgrade = today;
-        upd.puntos = (af.puntos||0) + Math.floor(baseCalculo / PTS_RATIO);
-        upd.acumulado = (af.acumulado||0) + o.total;
-      } else if (isExtraPaq) {
-        var extraPkg = o.items.filter(function(it){return it._extra;})[0]._pkgName || newPkg;
+      if (isExtraPaq) {
+        var extraPkg = (o.items.filter(function(it){return it._extra;})[0]||{})._pkgName || newPkg;
         var nuevosAcum = (af.paquetesAcum||[]).slice();
         nuevosAcum.push({ pkg: extraPkg, fecha: today, recompras: [thisMonth()] });
         upd.paquetes_acum = nuevosAcum;
+      } else {
+        // SIEMPRE actualizar pkg, paquete_pagado, activo y tipo al aprobar
+        upd.pkg = newPkg;
+        upd.paquete_pagado = true;
+        upd.activo = true;
+        upd.bono_ir_recibido = true;
+        if (af.tipo === 'promotor') upd.tipo = 'afiliado';
+        // Puntos y acumulado solo si no estaban ya sumados
+        if (!af.paquetePagado) {
+          upd.puntos = (af.puntos||0) + Math.floor(baseCalculo / PTS_RATIO);
+          upd.acumulado = (af.acumulado||0) + o.total;
+        }
       }
     }
     if (Object.keys(upd).length > 0) updates.push(sbPatch('afiliados', upd, '?id=eq.'+af.id));
