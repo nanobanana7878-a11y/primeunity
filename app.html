@@ -3834,19 +3834,26 @@ function renderAfilPanel() {
   var bSub = pkEf.bono>0
     ? (rcActiva&&actN1RangoAnt>=(n1actReq)?'Activo'+upgradeNotice:bonoMeta)
     : 'Desde Semilla';
+  var workinActs = (af.workins||[]).filter(function(w){ return w.estado==='activo'; });
+  var workinMes = workinActs.reduce(function(s,w){ return s+((RANGOS[w.rango]||{}).price||0)*0.20; },0);
   el('afil-kpis').innerHTML=
-    '<div class="kpi"><div class="klbl">Mi rango</div><div class="kval" style="color:'+(pk.color||'var(--b6)')+'">'+(pk.ico||'')+' '+af.pkg+'</div><div class="ksub">'+(pk.goteros||0)+' goteros · '+(pk.bono>0?'Bono '+fmt(pk.bono)+'/mes':'sin bono')+'</div></div>'+
-    '<div class="kpi"><div class="klbl">Bono mensual 20%</div><div class="kval '+bClass+'">'+fmt(bono)+'</div><div class="ksub">'+
-      (numPaquetes>1 ? numPaquetes+' paquetes: '+fmt(bonoBase)+' + '+fmt(bonoExtra)+' extra' : bSub)+
-      '</div></div>'+
+    '<div class="kpi"><div class="klbl">Mi rango</div><div class="kval" style="color:'+(pk.color||'var(--b6)')+'">'+(pk.ico||'')+' '+af.pkg+'</div><div class="ksub">'+(pk.goteros||0)+' goteros · Hasta N'+(pk.niveles||1)+'</div></div>'+
+    '<div class="kpi" style="'+(workinActs.length?'border-color:#059669;':'')+'"><div class="klbl">⚡ WorkIn</div><div class="kval" style="color:#059669">'+fmt(workinMes)+'</div><div class="ksub">'+(workinActs.length?workinActs.length+' paq. activos · 20%/mes':'Sin paquetes activos')+'</div></div>'+
     '<div class="kpi" style="'+(comMesPend>0?'border-color:var(--amber);':'')+'"><div class="klbl">Ganado este mes</div><div class="kval green">'+fmt(comMesReal)+'</div><div class="ksub">'+fmt(comMesPag)+' pagado · '+fmt(comMesPend)+' por cobrar</div></div>'+
-    '<div class="kpi"><div class="klbl">Proyección mensual</div><div class="kval blue">'+fmt(redCom+bono)+'</div><div class="ksub">basado en red activa</div></div>'+
+    '<div class="kpi"><div class="klbl">Proyección mensual</div><div class="kval blue">'+fmt(redCom+workinMes)+'</div><div class="ksub">red + WorkIn</div></div>'+
     '<div class="kpi"><div class="klbl">⭐ Mis puntos</div><div class="kval amber">'+pts+'</div><div class="ksub">+'+ptsGrp+' red · $10=1pt</div></div>'+
     '<div class="kpi"><div class="klbl">Recompra '+thisMonth()+'</div><div class="kval '+(rcActiva?'green':'amber')+'">'+(rcActiva?'✓ Al día':'Pendiente')+'</div><div class="ksub">Mín: '+fmt(pk.recompra||0)+'</div></div>'+
     '';
 
   // Progreso
-  var bonoBar=pk.bono>0?'<div class="prog-item"><div class="prog-hd"><span>Bono 20%</span><span style="font-weight:700;color:'+(rcActiva?'var(--green)':'var(--amber)')+'">'+fmt(pk.bono)+'/mes</span></div><div class="pb"><div class="pf" style="width:'+(rcActiva?100:0)+'%;background:'+(rcActiva?'var(--green)':'var(--amber)')+'"></div></div></div>':'';
+  // Bono 20% eliminado — reemplazado por Plan WorkIn
+  var bonoBar='';
+  // Mostrar WorkIn activo si tiene
+  var workinActivos = (af.workins||[]).filter(function(w){ return w.estado==='activo'; });
+  if (workinActivos.length) {
+    var totalWorkinMes = workinActivos.reduce(function(s,w){ return s+(RANGOS[w.rango]||{}).price*0.20; },0);
+    bonoBar = '<div class="prog-item"><div class="prog-hd"><span>⚡ WorkIn activo ('+workinActivos.length+' paq.)</span><span style="font-weight:700;color:var(--green)">'+fmt(totalWorkinMes)+'/mes</span></div><div class="pb"><div class="pf" style="width:100%;background:#059669"></div></div></div>';
+  }
   el('afil-prog').innerHTML=
     '<div class="prog-item"><div class="prog-hd"><span>Recompra mensual</span><span>'+(rcActiva?fmt(rc.monto):'$0')+'/'+fmt(pk.recompra||0)+'</span></div><div class="pb"><div class="pf" style="width:'+(rcActiva?100:0)+'%;background:var(--green)"></div></div></div>'+
     bonoBar+
