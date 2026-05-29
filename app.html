@@ -3346,6 +3346,9 @@ function editRangoPedido(ordId) {
     })
     .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
 }
+
+function rejectOrd(id) {
+  if(!confirm('¿Rechazar este pedido?')) return;
   showLoading('Rechazando...'); sbPatch('pedidos',{estado:'Rechazado'},'?id=eq.'+id).then(function(){return loadAdmin();}).then(function(){renderAdmPedidos();showAlert('Pedido rechazado.','err');}).catch(function(e){hideLoading();showAlert('Error: '+e.message,'err');});
 }
 
