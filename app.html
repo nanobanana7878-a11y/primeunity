@@ -3063,262 +3063,156 @@ function _doApproveOrd(id) {
   showLoading('Aprobando pedido...');
   var today = new Date().toISOString().slice(0,10);
   var af = C.afiliados.filter(function(a){ return a.id===o.afilId; })[0];
-  console.log('[approveOrd] af:', af && af.nombre, '| patrocinador:', af && af.patrocinador);
-  var updates = [sbPatch('pedidos',{estado:'Aprobado'},'?id=eq.'+id)];
+  if (!af) { hideLoading(); showAlert('Afiliado no encontrado para este pedido.','err'); return; }
 
-  // Reducir stock
+  var updates = [ sbPatch('pedidos', {estado:'Aprobado'}, '?id=eq.'+id) ];
+
+  // ── 1. Reducir stock ──
   o.items.forEach(function(it) {
     var prod = C.productos.filter(function(x){ return x.id===it.prodId; })[0];
     if (prod && prod.stock < 999) {
-      updates.push(sbPatch('productos',{stock:Math.max(0,prod.stock-it.qty)},'?id=eq.'+it.prodId));
+      updates.push(sbPatch('productos', {stock: Math.max(0, prod.stock - it.qty)}, '?id=eq.'+it.prodId));
     }
   });
 
-  if (af) {
-    // ── Detectar si el pedido es una RECOMPRA mensual ──
-    var esRecompra = o.items.some(function(it){ return it._tipoCompra === 'recompra'; });
-    if (esRecompra) {
-      // Registrar la recompra del mes — NO cambiar rango, NO comisión de entrada
-      var mesActual = thisMonth();
-      var diaHoy = new Date().getDate();
-      var aTiempo = diaHoy <= 15;
-      var diasActivos = aTiempo ? 30 : (30 - diaHoy + 1);
-      var recId = 'REC' + Date.now().toString().slice(-7) + Math.random().toString(36).slice(-3).toUpperCase();
-      updates.push(sbPost('recompras', {
-        id: recId,
-        afil_id: af.id,
-        afil_nombre: af.nombre + ' ' + af.apellido,
-        mes: mesActual,
-        monto: o.total,
-        pagado: true,
-        fecha_pago: today,
-        dia_pago: diaHoy,
-        a_tiempo: aTiempo,
-        dias_activos: diasActivos,
-        num_paquete: 1
-      }));
-      // Comisiones de red SÍ se generan por recompra (la red cobra)
-      var curAfilR = af;
-      for (var nivR = 1; nivR <= 10; nivR++) {
-        if (!curAfilR || !curAfilR.patrocinador) break;
-        var spR = C.afiliados.filter(function(a){ return a.refCode === curAfilR.patrocinador; })[0];
-        if (!spR) break;
-        var pkSpR = RANGOS[spR.pkg] || {};
-        if (nivR <= (pkSpR.niveles||1) && spR.activo) {
-          var pctR = NCOM[nivR] || 0;
-          var comR = Math.round(o.total * pctR * 100) / 100;
-          if (comR > 0) {
-            updates.push(sbPost('pagos', {
-              id: 'COM' + today.replace(/-/g,'') + nivR + Math.random().toString(36).slice(-3).toUpperCase(),
-              afil_id: spR.id,
-              afil_nombre: spR.nombre + ' ' + spR.apellido,
-              monto: comR,
-              concepto: 'Com. recompra N' + nivR + ' — ' + af.nombre + ' ' + af.apellido + ' [' + o.id + ']',
-              fecha: today,
-              estado: 'Pendiente'
-            }));
-          }
-        }
-        curAfilR = spR;
+  // ── 2. Detectar tipo de pedido ──
+  var esRecompra = o.items.some(function(it){ return it._tipoCompra === 'recompra'; });
+
+  // ── 3. RECOMPRA mensual ──
+  if (esRecompra) {
+    var mesActual = thisMonth();
+    var diaHoy = new Date().getDate();
+    var aTiempo = diaHoy <= 15;
+    updates.push(sbPost('recompras', {
+      id: 'REC'+Date.now().toString().slice(-7)+Math.random().toString(36).slice(-3).toUpperCase(),
+      afil_id: af.id, afil_nombre: af.nombre+' '+af.apellido,
+      mes: mesActual, monto: o.total, pagado: true,
+      fecha_pago: today, dia_pago: diaHoy, a_tiempo: aTiempo,
+      dias_activos: aTiempo ? 30 : (30 - diaHoy + 1), num_paquete: 1
+    }));
+    // Comisiones de recompra en red
+    var cur = af;
+    for (var nR=1; nR<=10; nR++) {
+      if (!cur.patrocinador) break;
+      var sp = C.afiliados.filter(function(a){ return a.refCode===cur.patrocinador; })[0];
+      if (!sp || !sp.activo) break;
+      var pctR = NCOM[nR] || 0;
+      var comR = Math.round(o.total * pctR * 100) / 100;
+      if (comR > 0 && nR <= (RANGOS[sp.pkg]||{}).niveles) {
+        updates.push(sbPost('pagos', {
+          id:'COM'+today.replace(/-/g,'')+nR+Math.random().toString(36).slice(-3).toUpperCase(),
+          afil_id:sp.id, afil_nombre:sp.nombre+' '+sp.apellido,
+          monto:comR, concepto:'Recompra N'+nR+' — '+af.nombre+' ['+id+']',
+          fecha:today, estado:'Pendiente'
+        }));
       }
-      // Registrar actividad
-      updates.push(sbPost('actividad', {
-        tipo: 'recompra',
-        txt: '🔄 Recompra ' + mesActual + ' — ' + af.nombre + ' ' + af.apellido + (aTiempo?' (a tiempo)':' (tardía)'),
-        fecha: today
-      }));
-      // Finalizar — no procesar como paquete
-      Promise.all(updates)
-        .then(function(){ return loadAdmin(); })
-        .then(function(){
-          buildTabs(); renderAdmPedidos(); hideLoading();
-          showAlert('Recompra aprobada. Mes ' + mesActual + ' activo' + (aTiempo?'':' (pago tardío - bono proporcional)') + '.', 'suc');
-        })
-        .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
-      return;
+      cur = sp;
     }
-
-    // ══════════════════════════════════════════════════════
-    // DETECCIÓN DE RANGO — orden de prioridad:
-    // 1. pkg_pedido (guardado al crear el pedido) — más confiable
-    // 2. _pkg en items del pedido
-    // 3. af.pkg cuando paquetePagado=false (primera compra)
-    // 4. detectRangoFromTotal (precio exacto)
-    // ══════════════════════════════════════════════════════
-    var newPkg = null;
-
-    // PRIORIDAD 1: campo pkg_pedido directo
-    if (o.pkgPedido && RANGOS[o.pkgPedido]) {
-      newPkg = o.pkgPedido;
-      console.log('[approveOrd] ✓ P1 pkg_pedido:', newPkg);
-    }
-    // PRIORIDAD 2: _pkg en cualquier item
-    if (!newPkg) {
-      for (var pi=0; pi<o.items.length; pi++) {
-        var it = o.items[pi];
-        if (it._pkg && RANGOS[it._pkg]) { newPkg = it._pkg; console.log('[approveOrd] ✓ P2 _pkg item:', newPkg); break; }
-        if (it._pkgName && RANGOS[it._pkgName]) { newPkg = it._pkgName; console.log('[approveOrd] ✓ P2 _pkgName item:', newPkg); break; }
-      }
-    }
-    // PRIORIDAD 3: detectar por precio total exacto
-    if (!newPkg) {
-      newPkg = detectRangoFromTotal(o.total);
-      if (newPkg) console.log('[approveOrd] ✓ P3 por total:', newPkg);
-    }
-    // PRIORIDAD 4: precio más cercano (tolerancia $5)
-    if (!newPkg) {
-      var rOrd = Object.keys(RANGOS).sort(function(a,b){ return Math.abs(RANGOS[a].price-o.total)-Math.abs(RANGOS[b].price-o.total); });
-      if (rOrd.length && Math.abs(RANGOS[rOrd[0]].price-o.total) <= 5) {
-        newPkg = rOrd[0];
-        console.log('[approveOrd] ✓ P4 precio cercano:', newPkg);
-      }
-    }
-    // PRIORIDAD 5: af.pkg cuando es primera compra (paquetePagado=false)
-    if (!newPkg && !af.paquetePagado && af.pkg && RANGOS[af.pkg]) {
-      newPkg = af.pkg;
-      console.log('[approveOrd] ✓ P5 af.pkg primera compra:', newPkg);
-    }
-
-    // ── Detectar tipo de pedido ──
-    var hasPkgCat = o.items.some(function(it){
-      var pr = C.productos.filter(function(x){ return x.id===it.prodId; })[0];
-      return pr && pr.cat==='paquete';
-    });
-    var hasSaldoPaq = o.items.some(function(it){
-      return it._saldoPaquete || it._tipoCompra==='paquete' || it._tipoCompra==='upgrade' || it._pkg;
-    });
-    var esEntradaAfil = !af.paquetePagado && af.pkg && RANGOS[af.pkg];
-    var rangoByTotal = detectRangoFromTotal(o.total);
-    var esPaquete = hasPkgCat || hasSaldoPaq || !!esEntradaAfil || !!rangoByTotal || !!newPkg;
-
-    console.log('[approveOrd] esPaquete:', esPaquete, 'newPkg:', newPkg, 'hasSaldoPaq:', hasSaldoPaq, 'esEntradaAfil:', !!esEntradaAfil);
-
-    if (esPaquete && !newPkg) {
-      hideLoading();
-      showAlert('❌ No se pudo detectar el rango. Usa el botón 📦 en el pedido para asignarlo manualmente.','err');
-      return;
-    }
-
-    // ── Actualizar afiliado ──
-    // NOTA: Para pedidos de saldo de paquete, el afiliado YA está activado al enviar el pedido.
-    // Aquí solo actualizamos si aún no está activo (pedidos creados con versión antigua)
-    var upd = {};
-    var esCompraIndividual = !hasPkgCat && !hasSaldoPaq && !esPaquete;
-    if (esCompraIndividual) {
-      var ptsBase = Math.floor(o.total / PTS_RATIO);
-      upd.puntos = (af.puntos||0) + ptsBase;
-    }
-
-    if (esPaquete) {
-      var pkNew = RANGOS[newPkg] || RANGOS[af.pkg] || {};
-      var isExtraPaq = o.items.some(function(it){ return it._extra === true; });
-      var baseCalculo = Math.max(0, pkNew.price || o.total);
-
-      if (isExtraPaq) {
-        var extraPkg = (o.items.filter(function(it){return it._extra;})[0]||{})._pkgName || newPkg;
-        var nuevosAcum = (af.paquetesAcum||[]).slice();
-        nuevosAcum.push({ pkg: extraPkg, fecha: today, recompras: [thisMonth()] });
-        upd.paquetes_acum = nuevosAcum;
-      } else {
-        // SIEMPRE actualizar pkg, paquete_pagado, activo y tipo al aprobar
-        upd.pkg = newPkg;
-        upd.paquete_pagado = true;
-        upd.activo = true;
-        upd.bono_ir_recibido = true;
-        if (af.tipo === 'promotor') upd.tipo = 'afiliado';
-        // Puntos y acumulado solo si no estaban ya sumados
-        if (!af.paquetePagado) {
-          upd.puntos = (af.puntos||0) + Math.floor(baseCalculo / PTS_RATIO);
-          upd.acumulado = (af.acumulado||0) + o.total;
-        }
-      }
-    }
-    if (Object.keys(upd).length > 0) updates.push(sbPatch('afiliados', upd, '?id=eq.'+af.id));
-
-    // ── Pagar comisiones en la red ──
-    if (esPaquete) {
-      var pkNew2 = RANGOS[newPkg] || RANGOS[af.pkg] || {};
-      var pkOld2 = RANGOS[af.pkg] || {};
-      var isUpgrade2 = af.paquetePagado && newPkg && newPkg !== af.pkg;
-      // Base de comisión SIEMPRE sobre el precio real del paquete en RANGOS
-      // (no sobre o.total que puede ser suma de goteros individuales en pedidos de saldo)
-      var precioAnterior2 = isUpgrade2 ? (pkOld2.price || 0) : 0;
-      var baseComision = Math.max(0, (pkNew2.price || 0) - precioAnterior2);
-      // Fallback: si no hay precio en RANGOS, usar o.total
-      if (!baseComision && o.total > 0) baseComision = o.total;
-      var tipoComision = isUpgrade2 ? 'Upgrade N' : 'Com. entrada N';
-      var comMessages = [];
-      var curAfil = af;
-      for (var nivel = 1; nivel <= 10; nivel++) {
-        if (!curAfil || !curAfil.patrocinador) break;
-        var sponsor = C.afiliados.filter(function(a){
-          return a.refCode === curAfil.patrocinador;
-        })[0];
-        if (!sponsor) break;
-        var pkSp = RANGOS[sponsor.pkg] || {};
-        if (nivel <= (pkSp.niveles||1) && sponsor.activo) {
-          var pct = NCOM_ENT[nivel] || 0;
-          // Comisión sobre la diferencia (upgrade) o precio completo (entrada)
-          var comMonto = Math.round(baseComision * pct * 100) / 100;
-          if (comMonto > 0) {
-            console.log('[approveOrd] Comisión N'+nivel, sponsor.nombre, '+$'+comMonto);
-            var comId = 'COM' + today.replace(/-/g,'') + nivel + Math.random().toString(36).slice(-3).toUpperCase();
-            updates.push(sbPost('pagos', {
-              id: comId,
-              afil_id: sponsor.id,
-              afil_nombre: sponsor.nombre + ' ' + sponsor.apellido,
-              monto: comMonto,
-              concepto: tipoComision + nivel + ' — ' + af.nombre + ' ' + af.apellido +
-                        (isUpgrade2 ? ' (' + (pkOld2.name||af.pkg) + '→' + newPkg + ')' : '') +
-                        ' [' + o.id + ']',
-              fecha: today,
-              estado: 'Pendiente'
-            }));
-            comMessages.push('N'+nivel+': '+sponsor.nombre+' +$'+comMonto);
-          }
-          // Puntos de grupo para patrocinador (N1=10%, N2=5%, N3=3% de los puntos del afiliado)
-          if (nivel <= 3) {
-            var pctPts = PTS_GRUPO[nivel] || 0;
-            var ptsAfil = Math.floor(baseComision / PTS_RATIO);
-            var ptsGrupo = Math.floor(ptsAfil * pctPts);
-            if (ptsGrupo > 0) {
-              console.log('[approveOrd] Pts grupo N'+nivel, sponsor.nombre, '+'+ptsGrupo+' pts');
-              updates.push(sbPatch('afiliados', {
-                puntos: (sponsor.puntos||0) + ptsGrupo
-              }, '?id=eq.' + sponsor.id));
-            }
-          }
-        }
-        curAfil = sponsor;
-      }
-
-      // Registrar actividad
-      updates.push(sbPost('actividad', {
-        tipo: 'pedido',
-        txt: 'Pedido ' + id + ' aprobado — ' + o.afil +
-             (newPkg ? ' → Rango ' + newPkg : '') +
-             (comMessages.length ? ' | Coms: ' + comMessages.join(', ') : ''),
-        fecha: today
-      }));
-    } else {
-      // Pedido de recompra u otro — sin comisión de entrada
-      updates.push(sbPost('actividad',{
-        tipo:'pedido',
-        txt:'Pedido '+id+' aprobado (recompra) — '+o.afil,
-        fecha:today
-      }));
-    }
+    updates.push(sbPost('actividad',{tipo:'recompra',txt:'Recompra '+mesActual+' — '+af.nombre+' '+af.apellido,fecha:today}));
+    return Promise.all(updates)
+      .then(function(){ return loadAdmin(); })
+      .then(function(){ buildTabs(); renderAdmPedidos(); hideLoading(); showAlert('Recompra aprobada.','suc'); })
+      .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
   }
+
+  // ── 4. PAQUETE (entrada, upgrade, adicional) ──
+  // Detectar el rango — en orden de confiabilidad
+  var newPkg = null;
+  if (o.pkgPedido && RANGOS[o.pkgPedido])                          newPkg = o.pkgPedido;        // P1: campo directo
+  if (!newPkg) { for(var pi=0;pi<o.items.length;pi++) {
+    if (o.items[pi]._pkg && RANGOS[o.items[pi]._pkg])             { newPkg=o.items[pi]._pkg; break; }   // P2: _pkg en item
+    if (o.items[pi]._pkgName && RANGOS[o.items[pi]._pkgName])     { newPkg=o.items[pi]._pkgName; break; }
+  }}
+  if (!newPkg) newPkg = detectRangoFromTotal(o.total);              // P3: precio exacto
+  if (!newPkg) {                                                     // P4: precio más cercano
+    var rOrd = Object.keys(RANGOS).sort(function(a,b){ return Math.abs(RANGOS[a].price-o.total)-Math.abs(RANGOS[b].price-o.total); });
+    if (rOrd.length && Math.abs(RANGOS[rOrd[0]].price-o.total)<=5) newPkg = rOrd[0];
+  }
+  if (!newPkg && !af.paquetePagado && af.pkg && RANGOS[af.pkg])    newPkg = af.pkg;              // P5: af.pkg primera compra
+
+  // Si hay items con _saldoPaquete o _tipoCompra=paquete/upgrade, es un pedido de paquete
+  var esPedidoPaquete = newPkg || o.items.some(function(it){
+    return it._saldoPaquete || it._tipoCompra==='paquete' || it._tipoCompra==='upgrade' || it._pkg;
+  }) || !af.paquetePagado;
+
+  if (!esPedidoPaquete) {
+    // Compra individual suelta — solo puntos
+    updates.push(sbPatch('afiliados', {puntos:(af.puntos||0)+Math.floor(o.total/PTS_RATIO)}, '?id=eq.'+af.id));
+    updates.push(sbPost('actividad',{tipo:'pedido',txt:'Pedido '+id+' aprobado — '+af.nombre,fecha:today}));
+    return Promise.all(updates)
+      .then(function(){ return loadAdmin(); })
+      .then(function(){ buildTabs(); renderAdmPedidos(); hideLoading(); showAlert('Pedido aprobado.','suc'); })
+      .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+  }
+
+  if (!newPkg) {
+    hideLoading();
+    showAlert('❌ No se pudo detectar el rango. Usa el botón 📦 para asignarlo manualmente.','err');
+    return;
+  }
+
+  var pkNew = RANGOS[newPkg] || {};
+  var baseComision = pkNew.price || o.total;
+  var isExtraPaq = o.items.some(function(it){ return it._extra===true; });
+
+  // Actualizar afiliado
+  var upd = { pkg: newPkg, paquete_pagado: true, activo: true, bono_ir_recibido: true };
+  if (af.tipo === 'promotor') upd.tipo = 'afiliado';
+  if (!af.paquetePagado) {
+    upd.puntos  = (af.puntos||0)  + Math.floor(baseComision / PTS_RATIO);
+    upd.acumulado = (af.acumulado||0) + o.total;
+  }
+  if (isExtraPaq) {
+    var extraPkg = (o.items.filter(function(it){return it._extra;})[0]||{})._pkgName || newPkg;
+    var acum = (af.paquetesAcum||[]).slice();
+    acum.push({pkg:extraPkg, fecha:today, recompras:[thisMonth()]});
+    upd.paquetes_acum = acum;
+    delete upd.pkg; // no cambiar pkg principal en extra
+  }
+  updates.push(sbPatch('afiliados', upd, '?id=eq.'+af.id));
+
+  // ── 5. Comisiones de red ──
+  var comLogs = [];
+  var curAfil = af;
+  for (var nivel=1; nivel<=10; nivel++) {
+    if (!curAfil || !curAfil.patrocinador) break;
+    var sponsor = C.afiliados.filter(function(a){ return a.refCode===curAfil.patrocinador; })[0];
+    if (!sponsor || !sponsor.activo) break;
+    var pkSp = RANGOS[sponsor.pkg] || {};
+    if (nivel <= (pkSp.niveles||1)) {
+      var pct = NCOM_ENT[nivel] || 0;
+      var com = Math.round(baseComision * pct * 100) / 100;
+      if (com > 0) {
+        updates.push(sbPost('pagos', {
+          id:'COM'+today.replace(/-/g,'')+nivel+Math.random().toString(36).slice(-3).toUpperCase(),
+          afil_id:sponsor.id, afil_nombre:sponsor.nombre+' '+sponsor.apellido,
+          monto:com, concepto:'Com. entrada N'+nivel+' — '+af.nombre+' '+af.apellido+' ('+newPkg+') ['+id+']',
+          fecha:today, estado:'Pendiente'
+        }));
+        comLogs.push('N'+nivel+' '+sponsor.nombre+' +$'+com);
+      }
+      // Puntos de grupo
+      if (nivel<=3) {
+        var pg = Math.floor(Math.floor(baseComision/PTS_RATIO) * (PTS_GRUPO[nivel]||0));
+        if (pg>0) updates.push(sbPatch('afiliados',{puntos:(sponsor.puntos||0)+pg},'?id=eq.'+sponsor.id));
+      }
+    }
+    curAfil = sponsor;
+  }
+
+  updates.push(sbPost('actividad',{
+    tipo:'pedido',
+    txt:'Pedido '+id+' aprobado — '+af.nombre+' → '+newPkg+(comLogs.length?' | '+comLogs.join(', '):''),
+    fecha:today
+  }));
 
   Promise.all(updates)
     .then(function(){ return loadAdmin(); })
     .then(function(){
-      buildTabs();
-      renderAdmPedidos();
-      hideLoading();
-      showAlert('Pedido aprobado. Rango actualizado y comisiones generadas en la red.', 'suc');
+      buildTabs(); renderAdmPedidos(); hideLoading();
+      showAlert('✅ Pedido aprobado. Rango: '+newPkg+(comLogs.length?' | Comisiones: '+comLogs.join(', '):''),'suc');
     })
-    .catch(function(e){ hideLoading(); showAlert('Error al aprobar: ' + (e.message||e), 'err'); console.error('approveOrd error:', e); });
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); console.error(e); });
 }
 
 // Editar rango de un pedido manualmente (para pedidos sin pkg_pedido)
