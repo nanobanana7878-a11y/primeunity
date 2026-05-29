@@ -3073,157 +3073,105 @@ function _doApproveOrd(id) {
   showLoading('Aprobando pedido...');
   var today = new Date().toISOString().slice(0,10);
   var af = C.afiliados.filter(function(a){ return a.id===o.afilId; })[0];
-  if (!af) { hideLoading(); showAlert('Afiliado no encontrado para este pedido.','err'); return; }
+  if (!af) { hideLoading(); showAlert('Afiliado no encontrado.','err'); return; }
+  console.log('[approveOrd] af:', af.nombre, '| pat:', af.patrocinador, '| pkg_pedido:', o.pkgPedido, '| total:', o.total);
 
-  var updates = [ sbPatch('pedidos', {estado:'Aprobado'}, '?id=eq.'+id) ];
+  var updates = [sbPatch('pedidos',{estado:'Aprobado'},'?id=eq.'+id)];
 
-  // ── 1. Reducir stock ──
-  o.items.forEach(function(it) {
-    var prod = C.productos.filter(function(x){ return x.id===it.prodId; })[0];
-    if (prod && prod.stock < 999) {
-      updates.push(sbPatch('productos', {stock: Math.max(0, prod.stock - it.qty)}, '?id=eq.'+it.prodId));
-    }
+  // ── Reducir stock ──
+  o.items.forEach(function(it){
+    var prod = C.productos.filter(function(x){return x.id===it.prodId;})[0];
+    if (prod && prod.stock < 999) updates.push(sbPatch('productos',{stock:Math.max(0,prod.stock-it.qty)},'?id=eq.'+it.prodId));
   });
 
-  // ── 2. Detectar tipo de pedido ──
-  var esRecompra = o.items.some(function(it){ return it._tipoCompra === 'recompra'; });
+  // ── Detectar tipo de pedido ──
+  var esRecompra = o.items.some(function(it){ return it._tipoCompra==='recompra'; });
 
-  // ── 3. RECOMPRA mensual ──
   if (esRecompra) {
-    var mesActual = thisMonth();
-    var diaHoy = new Date().getDate();
-    var aTiempo = diaHoy <= 15;
-    updates.push(sbPost('recompras', {
-      id: 'REC'+Date.now().toString().slice(-7)+Math.random().toString(36).slice(-3).toUpperCase(),
-      afil_id: af.id, afil_nombre: af.nombre+' '+af.apellido,
-      mes: mesActual, monto: o.total, pagado: true,
-      fecha_pago: today, dia_pago: diaHoy, a_tiempo: aTiempo,
-      dias_activos: aTiempo ? 30 : (30 - diaHoy + 1), num_paquete: 1
-    }));
-    // Comisiones de recompra en red
-    var cur = af;
-    for (var nR=1; nR<=10; nR++) {
-      if (!cur.patrocinador) break;
-      var sp = C.afiliados.filter(function(a){ return a.refCode===cur.patrocinador; })[0];
-      if (!sp || !sp.activo) break;
-      var pctR = NCOM[nR] || 0;
-      var comR = Math.round(o.total * pctR * 100) / 100;
-      if (comR > 0 && nR <= (RANGOS[sp.pkg]||{}).niveles) {
-        updates.push(sbPost('pagos', {
-          id:'COM'+today.replace(/-/g,'')+nR+Math.random().toString(36).slice(-3).toUpperCase(),
-          afil_id:sp.id, afil_nombre:sp.nombre+' '+sp.apellido,
-          monto:comR, concepto:'Recompra N'+nR+' — '+af.nombre+' ['+id+']',
-          fecha:today, estado:'Pendiente'
-        }));
-      }
-      cur = sp;
+    var mes=thisMonth(), dia=new Date().getDate(), aTiempo=dia<=15;
+    updates.push(sbPost('recompras',{id:'REC'+Date.now().toString().slice(-7)+Math.random().toString(36).slice(-3).toUpperCase(),afil_id:af.id,afil_nombre:af.nombre+' '+af.apellido,mes:mes,monto:o.total,pagado:true,fecha_pago:today,dia_pago:dia,a_tiempo:aTiempo,dias_activos:aTiempo?30:(30-dia+1),num_paquete:1}));
+    var curR=af;
+    for(var nR=1;nR<=10;nR++){
+      if(!curR||!curR.patrocinador) break;
+      var spR=C.afiliados.filter(function(a){return a.refCode===curR.patrocinador;})[0];
+      if(!spR||!spR.activo) break;
+      var pctR=NCOM[nR]||0, comR=Math.round(o.total*pctR*100)/100;
+      if(comR>0&&nR<=(RANGOS[spR.pkg]||{}).niveles) updates.push(sbPost('pagos',{id:'COM'+today.replace(/-/g,'')+nR+Math.random().toString(36).slice(-3).toUpperCase(),afil_id:spR.id,afil_nombre:spR.nombre+' '+spR.apellido,monto:comR,concepto:'Recompra N'+nR+' — '+af.nombre+' ['+id+']',fecha:today,estado:'Pendiente'}));
+      curR=spR;
     }
-    updates.push(sbPost('actividad',{tipo:'recompra',txt:'Recompra '+mesActual+' — '+af.nombre+' '+af.apellido,fecha:today}));
-    return Promise.all(updates)
-      .then(function(){ return loadAdmin(); })
-      .then(function(){ buildTabs(); renderAdmPedidos(); hideLoading(); showAlert('Recompra aprobada.','suc'); })
-      .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+    updates.push(sbPost('actividad',{tipo:'recompra',txt:'Recompra '+mes+' — '+af.nombre+' '+af.apellido,fecha:today}));
+    return Promise.all(updates).then(function(){return loadAdmin();}).then(function(){buildTabs();renderAdmPedidos();hideLoading();showAlert('Recompra aprobada.','suc');}).catch(function(e){hideLoading();showAlert('Error: '+(e.message||e),'err');});
   }
 
-  // ── 4. PAQUETE (entrada, upgrade, adicional) ──
-  // Detectar el rango — SOLO desde el pedido, nunca desde af.pkg
-  var newPkg = null;
-  if (o.pkgPedido && RANGOS[o.pkgPedido]) newPkg = o.pkgPedido;  // P1: campo directo ✓
-  if (!newPkg) {
-    for (var pi=0; pi<o.items.length; pi++) {
-      if (o.items[pi]._pkg && RANGOS[o.items[pi]._pkg])         { newPkg=o.items[pi]._pkg; break; }
-      if (o.items[pi]._pkgName && RANGOS[o.items[pi]._pkgName]) { newPkg=o.items[pi]._pkgName; break; }
-    }
-  }                                                               // P2: _pkg en items
-  if (!newPkg) newPkg = detectRangoFromTotal(o.total);           // P3: precio exacto
-  if (!newPkg) {                                                  // P4: precio más cercano $5
-    var rOrd = Object.keys(RANGOS).sort(function(a,b){ return Math.abs(RANGOS[a].price-o.total)-Math.abs(RANGOS[b].price-o.total); });
-    if (rOrd.length && Math.abs(RANGOS[rOrd[0]].price-o.total)<=5) newPkg = rOrd[0];
-  }
-  console.log('[approveOrd] newPkg:', newPkg, 'pkgPedido:', o.pkgPedido, 'total:', o.total);
+  // ── Detectar rango del paquete ──
+  // P1: pkg_pedido guardado al crear el pedido (más confiable)
+  var newPkg = (o.pkgPedido && RANGOS[o.pkgPedido]) ? o.pkgPedido : null;
+  // P2: _pkg en items
+  if (!newPkg) { for(var pi=0;pi<o.items.length;pi++){ var it=o.items[pi]; if(it._pkg&&RANGOS[it._pkg]){newPkg=it._pkg;break;} if(it._pkgName&&RANGOS[it._pkgName]){newPkg=it._pkgName;break;} } }
+  // P3: precio total exacto
+  if (!newPkg) newPkg = detectRangoFromTotal(o.total);
+  // P4: precio más cercano $5
+  if (!newPkg) { var rk=Object.keys(RANGOS).sort(function(a,b){return Math.abs(RANGOS[a].price-o.total)-Math.abs(RANGOS[b].price-o.total);}); if(rk.length&&Math.abs(RANGOS[rk[0]].price-o.total)<=5) newPkg=rk[0]; }
 
-  // Si hay items con _saldoPaquete o _tipoCompra=paquete/upgrade, es un pedido de paquete
-  var esPedidoPaquete = newPkg || o.items.some(function(it){
-    return it._saldoPaquete || it._tipoCompra==='paquete' || it._tipoCompra==='upgrade' || it._pkg;
-  }) || !af.paquetePagado;
+  var esPaquete = !!newPkg || o.items.some(function(it){return it._saldoPaquete||it._tipoCompra==='paquete'||it._tipoCompra==='upgrade';}) || (!af.paquetePagado);
+  console.log('[approveOrd] newPkg:', newPkg, '| esPaquete:', esPaquete);
 
-  if (!esPedidoPaquete) {
-    // Compra individual suelta — solo puntos
-    updates.push(sbPatch('afiliados', {puntos:(af.puntos||0)+Math.floor(o.total/PTS_RATIO)}, '?id=eq.'+af.id));
+  if (!esPaquete) {
+    // Compra individual — solo puntos
+    updates.push(sbPatch('afiliados',{puntos:(af.puntos||0)+Math.floor(o.total/PTS_RATIO)},'?id=eq.'+af.id));
     updates.push(sbPost('actividad',{tipo:'pedido',txt:'Pedido '+id+' aprobado — '+af.nombre,fecha:today}));
-    return Promise.all(updates)
-      .then(function(){ return loadAdmin(); })
-      .then(function(){ buildTabs(); renderAdmPedidos(); hideLoading(); showAlert('Pedido aprobado.','suc'); })
-      .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+    return Promise.all(updates).then(function(){return loadAdmin();}).then(function(){buildTabs();renderAdmPedidos();hideLoading();showAlert('Pedido aprobado.','suc');}).catch(function(e){hideLoading();showAlert('Error: '+(e.message||e),'err');});
   }
 
-  if (!newPkg) {
-    hideLoading();
-    showAlert('❌ No se pudo detectar el rango. Usa el botón 📦 para asignarlo manualmente.','err');
-    return;
-  }
+  if (!newPkg) { hideLoading(); showAlert('❌ No se pudo detectar el rango. Usa el botón 📦 para asignarlo.','err'); return; }
 
-  var pkNew = RANGOS[newPkg] || {};
+  var pkNew = RANGOS[newPkg]||{};
+  var isExtraPaq = o.items.some(function(it){return it._extra===true;});
   var baseComision = pkNew.price || o.total;
-  var isExtraPaq = o.items.some(function(it){ return it._extra===true; });
 
-  // Actualizar afiliado
-  var upd = { pkg: newPkg, paquete_pagado: true, activo: true, bono_ir_recibido: true };
-  if (af.tipo === 'promotor') upd.tipo = 'afiliado';
-  if (!af.paquetePagado) {
-    upd.puntos  = (af.puntos||0)  + Math.floor(baseComision / PTS_RATIO);
-    upd.acumulado = (af.acumulado||0) + o.total;
-  }
-  if (isExtraPaq) {
-    var extraPkg = (o.items.filter(function(it){return it._extra;})[0]||{})._pkgName || newPkg;
-    var acum = (af.paquetesAcum||[]).slice();
-    acum.push({pkg:extraPkg, fecha:today, recompras:[thisMonth()]});
-    upd.paquetes_acum = acum;
-    delete upd.pkg; // no cambiar pkg principal en extra
-  }
-  updates.push(sbPatch('afiliados', upd, '?id=eq.'+af.id));
-
-  // ── 5. Comisiones de red ──
-  var comLogs = [];
-  var curAfil = af;
-  for (var nivel=1; nivel<=10; nivel++) {
-    if (!curAfil || !curAfil.patrocinador) break;
-    var sponsor = C.afiliados.filter(function(a){ return a.refCode===curAfil.patrocinador; })[0];
-    if (!sponsor || !sponsor.activo) break;
-    var pkSp = RANGOS[sponsor.pkg] || {};
-    if (nivel <= (pkSp.niveles||1)) {
-      var pct = NCOM_ENT[nivel] || 0;
-      var com = Math.round(baseComision * pct * 100) / 100;
-      if (com > 0) {
-        updates.push(sbPost('pagos', {
-          id:'COM'+today.replace(/-/g,'')+nivel+Math.random().toString(36).slice(-3).toUpperCase(),
-          afil_id:sponsor.id, afil_nombre:sponsor.nombre+' '+sponsor.apellido,
-          monto:com, concepto:'Com. entrada N'+nivel+' — '+af.nombre+' '+af.apellido+' ('+newPkg+') ['+id+']',
-          fecha:today, estado:'Pendiente'
-        }));
-        comLogs.push('N'+nivel+' '+sponsor.nombre+' +$'+com);
-      }
-      // Puntos de grupo
-      if (nivel<=3) {
-        var pg = Math.floor(Math.floor(baseComision/PTS_RATIO) * (PTS_GRUPO[nivel]||0));
-        if (pg>0) updates.push(sbPatch('afiliados',{puntos:(sponsor.puntos||0)+pg},'?id=eq.'+sponsor.id));
-      }
+  // ── Actualizar afiliado ──
+  var upd = { paquete_pagado:true, activo:true, bono_ir_recibido:true };
+  if (!isExtraPaq) {
+    upd.pkg = newPkg;
+    // Convertir promotor a afiliado
+    if (af.tipo==='promotor') {
+      upd.tipo = 'afiliado';
+      // Re-leer patrocinador fresco de Supabase
+      var afFresh = C.afiliados.filter(function(x){return x.id===af.id;})[0];
+      var patFinal = (afFresh&&afFresh.patrocinador)||af.patrocinador||o.patrocinadorRef||'';
+      if (patFinal) upd.patrocinador = patFinal;
+      console.log('[Conversión]', af.nombre, '→ afiliado | patrocinador:', patFinal);
     }
-    curAfil = sponsor;
+  } else {
+    var extraPkg=(o.items.filter(function(it){return it._extra;})[0]||{})._pkgName||newPkg;
+    var acum=(af.paquetesAcum||[]).slice(); acum.push({pkg:extraPkg,fecha:today,recompras:[thisMonth()]});
+    upd.paquetes_acum=acum;
   }
+  if (!af.paquetePagado) {
+    upd.puntos=(af.puntos||0)+Math.floor(baseComision/PTS_RATIO);
+    upd.acumulado=(af.acumulado||0)+o.total;
+  }
+  updates.push(sbPatch('afiliados',upd,'?id=eq.'+af.id));
 
-  updates.push(sbPost('actividad',{
-    tipo:'pedido',
-    txt:'Pedido '+id+' aprobado — '+af.nombre+' → '+newPkg+(comLogs.length?' | '+comLogs.join(', '):''),
-    fecha:today
-  }));
+  // ── Comisiones de red ──
+  var comLogs=[], curAfil=af;
+  for(var nivel=1;nivel<=10;nivel++){
+    if(!curAfil||!curAfil.patrocinador) break;
+    var sponsor=C.afiliados.filter(function(a){return a.refCode===curAfil.patrocinador;})[0];
+    if(!sponsor||!sponsor.activo) break;
+    var pkSp=RANGOS[sponsor.pkg]||{};
+    if(nivel<=(pkSp.niveles||1)){
+      var pct=NCOM_ENT[nivel]||0, com=Math.round(baseComision*pct*100)/100;
+      if(com>0){ updates.push(sbPost('pagos',{id:'COM'+today.replace(/-/g,'')+nivel+Math.random().toString(36).slice(-3).toUpperCase(),afil_id:sponsor.id,afil_nombre:sponsor.nombre+' '+sponsor.apellido,monto:com,concepto:'Com. entrada N'+nivel+' — '+af.nombre+' '+af.apellido+' ('+newPkg+') ['+id+']',fecha:today,estado:'Pendiente'})); comLogs.push('N'+nivel+' '+sponsor.nombre+' +$'+com); }
+      if(nivel<=3){ var pg=Math.floor(Math.floor(baseComision/PTS_RATIO)*(PTS_GRUPO[nivel]||0)); if(pg>0) updates.push(sbPatch('afiliados',{puntos:(sponsor.puntos||0)+pg},'?id=eq.'+sponsor.id)); }
+    }
+    curAfil=sponsor;
+  }
+  updates.push(sbPost('actividad',{tipo:'pedido',txt:'Pedido '+id+' aprobado — '+af.nombre+' → '+newPkg+(comLogs.length?' | '+comLogs.join(', '):''),fecha:today}));
 
   Promise.all(updates)
-    .then(function(){ return loadAdmin(); })
-    .then(function(){
-      buildTabs(); renderAdmPedidos(); hideLoading();
-      showAlert('✅ Pedido aprobado. Rango: '+newPkg+(comLogs.length?' | Comisiones: '+comLogs.join(', '):''),'suc');
-    })
+    .then(function(){return loadAdmin();})
+    .then(function(){ buildTabs(); renderAdmPedidos(); hideLoading(); showAlert('✅ Aprobado. Rango: '+newPkg+(comLogs.length?' | Coms: '+comLogs.join(', '):''),'suc'); })
     .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); console.error(e); });
 }
 
