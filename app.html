@@ -2385,11 +2385,10 @@ function doLogin() {
       }
 
       // Es un afiliado — buscar su perfil por auth_id
-      // Buscar afiliado SIEMPRE fresco
-      var ts2 = '&_t='+Date.now();
-      return sbGet('afiliados','?auth_id=eq.'+authUser.id+'&limit=1'+ts2).then(function(rows){
+      // Buscar afiliado fresco
+      return sbGet('afiliados','?auth_id=eq.'+authUser.id+'&limit=1').then(function(rows){
         if (!rows || rows.length===0) {
-          return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1'+ts2);
+          return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1');
         }
         return rows;
       }).then(function(rows){
@@ -5524,22 +5523,21 @@ function restaurarSesion() {
       loadAdmin().then(startApp);
       return;
     }
-    // Es afiliado — cargar su perfil SIEMPRE fresco (sin caché)
-    var ts = '&_t='+Date.now();
-    sbGet('afiliados','?auth_id=eq.'+session.user.id+'&limit=1'+ts).then(function(rows){
+    // Es afiliado — cargar su perfil fresco
+    sbGet('afiliados','?auth_id=eq.'+session.user.id+'&limit=1').then(function(rows){
       if (!rows || rows.length===0) {
-        return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1'+ts);
+        return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1');
       }
       return rows;
     }).then(function(rows){
       if (rows && rows.length>0) {
         cRole='afil'; cUser=nAfil(rows[0]);
-        console.log('[Auth] cUser cargado:', cUser.nombre, '| tipo:', cUser.tipo, '| pkg:', cUser.pkg, '| pagado:', cUser.paquetePagado);
+        console.log('[Auth] cUser:', cUser.nombre, '| tipo:', cUser.tipo, '| pkg:', cUser.pkg, '| pagado:', cUser.paquetePagado);
         loadAfil(cUser.id).then(function(){
           var fresco = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0];
           if (fresco) {
             cUser = fresco;
-            console.log('[Auth] cUser actualizado fresco:', cUser.tipo, cUser.pkg, cUser.paquetePagado);
+            console.log('[Auth] cUser fresco:', cUser.tipo, cUser.pkg, cUser.paquetePagado);
           }
           startApp();
         });
