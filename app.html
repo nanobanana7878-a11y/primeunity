@@ -2238,7 +2238,7 @@ function sbDel(t,q){ return sbFetch(t,'DELETE',null,q); }
 // ═══════════════════════════════
 // NORMALIZE
 // ═══════════════════════════════
-function nAfil(r){ return r ? { id:r.id, authId:r.auth_id||'', tipo:r.tipo||'promotor', nombre:r.nombre, apellido:r.apellido, email:r.email, pass:r.pass, tel:r.tel, pkg:r.pkg, patrocinador:r.patrocinador||'', refCode:r.ref_code||'', activo:r.activo, fechaReg:r.fecha_reg||'', acumulado:r.acumulado||0, paquetePagado:r.paquete_pagado||false, puntos:r.puntos||0, puntosCanjeados:r.puntos_canjeados||0, walletUsdt:r.wallet_usdt||'', walletBtc:r.wallet_btc||'', walletPref:r.wallet_pref||'usdt', pkgAnterior:r.pkg_anterior||'', fechaUpgrade:r.fecha_upgrade||'', bonoIRRecibido:r.bono_ir_recibido||false, paquetesAcum:r.paquetes_acum||[] } : null; }
+function nAfil(r){ return r ? { id:r.id, authId:r.auth_id||'', tipo:r.tipo||'promotor', nombre:r.nombre, apellido:r.apellido, email:r.email, pass:r.pass, tel:r.tel, pkg:r.pkg, patrocinador:r.patrocinador||'', refCode:r.ref_code||'', activo:r.activo, fechaReg:r.fecha_reg||'', acumulado:r.acumulado||0, paquetePagado:r.paquete_pagado||false, puntos:r.puntos||0, puntosCanjeados:r.puntos_canjeados||0, walletUsdt:r.wallet_usdt||'', walletBtc:r.wallet_btc||'', walletPref:r.wallet_pref||'usdt', pkgAnterior:r.pkg_anterior||'', fechaUpgrade:r.fecha_upgrade||'', bonoIRRecibido:r.bono_ir_recibido||false, paquetesAcum:r.paquetes_acum||[], workins:r.workins||[] } : null; }
 function nProd(r){ return r ? { id:r.id, code:r.code, name:r.name, desc:r.descripcion||'', descLarga:r.desc_larga||'', beneficios:r.beneficios||[], price:r.price, stock:r.stock, minStock:r.min_stock||20, ico:r.ico||'📦', cat:r.cat||'producto', rangoMin:r.rango_min||'', visible:r.visible, fotos:r.fotos||[] } : null; }
 function nPed(r){ var its=r&&r.items?r.items:[]; var pat=(its[0]&&its[0]._patrocinador)||''; return r ? { id:r.id, afilId:r.afil_id, afil:r.afil_nombre||'', items:its, total:r.total, metodo:r.metodo, txid:r.txid||'', estado:r.estado, fecha:r.fecha||'', clienteNombre:r.cliente_nombre||'', clienteTel:r.cliente_tel||'', clienteDir:r.cliente_dir||'', vendedorRef:r.vendedor_ref||'', cantGoteros:r.cant_goteros||0, comisionesGeneradas:r.comisiones_generadas||false, patrocinadorRef:pat, pkgPedido:r.pkg_pedido||null } : null; }
 function nPago(r){ return r ? { id:r.id, afilId:r.afil_id, afil:r.afil_nombre||'', monto:r.monto, concepto:r.concepto, fecha:r.fecha, estado:r.estado } : null; }
@@ -4826,12 +4826,34 @@ function submitOrder(){
 // MIS PEDIDOS
 // ═══════════════════════════════
 function renderMisOrds(){
+  var af=C.afiliados.filter(function(a){return a.id===cUser.id;})[0]||cUser;
+  var workins=af.workins||[];
   var ords=C.pedidos.filter(function(o){return o.afilId===cUser.id;});
   if(!ords.length){el('mis-ords-wrap').innerHTML='<div class="empty"><span class="ei">📋</span><p>Sin pedidos aún.</p><button class="btn bb" style="margin-top:.75rem" onclick="goSec(\'sec-tienda\')">Ir a la tienda</button></div>';return;}
   el('mis-ords-wrap').innerHTML=ords.map(function(o){
     var stCls=o.estado==='Aprobado'?'ok':o.estado==='Rechazado'?'rej':'pend';
     var items=o.items.map(function(it){return '<div style="display:flex;justify-content:space-between;padding:.5rem .875rem;font-size:.8rem;border-bottom:1px solid var(--g100)"><span>'+it.qty+'× '+it.name+'</span><span style="font-weight:600">'+fmt(it.qty*it.price)+'</span></div>';}).join('');
-    return '<div style="background:#fff;border:1px solid var(--g200);border-radius:var(--r);padding:1.1rem;margin-bottom:.875rem;box-shadow:var(--sh)"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem"><div><div style="font-family:monospace;font-size:.75rem;font-weight:700">'+o.id+'</div><div style="font-size:.72rem;color:var(--g500)">'+o.fecha+'</div></div><span class="pill '+stCls+'">'+o.estado+'</span></div><div style="border:1px solid var(--g100);border-radius:var(--r);overflow:hidden;margin-bottom:.75rem">'+items+'</div><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:.78rem;font-weight:700;color:'+(o.metodo==='usdt'?'var(--usdt)':'var(--btc)')+'">'+o.metodo.toUpperCase()+'</span><span style="font-family:\'Fraunces\',serif;font-size:1.2rem;font-weight:700;color:var(--b6)">'+fmt(o.total)+'</span></div></div>';
+    // Badge WorkIn si el pedido está aprobado y tiene WorkIn activo
+    var pkgDet = o.pkgPedido || detectRangoFromTotal(o.total);
+    var tieneWorkin = o.estado==='Aprobado' && workins.some(function(w){ return w.estado==='activo' && w.rango===pkgDet; });
+    var workinBadge = tieneWorkin
+      ? '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:.6rem .75rem;margin-top:.5rem;display:flex;justify-content:space-between;align-items:center">'
+        +'<div><div style="font-size:.78rem;font-weight:700;color:#065f46">⚡ En Plan WorkIn</div>'
+        +'<div style="font-size:.7rem;color:#047857">Tus goteros están trabajando · 20%/mes</div></div>'
+        +'<button class="btn" style="background:#065f46;color:#fff;font-size:.72rem;padding:.35rem .75rem" onclick="goSec(\'sec-afil-workin\')">Ver seguimiento →</button>'
+        +'</div>'
+      : '';
+    return '<div style="background:#fff;border:1px solid var(--g200);border-radius:var(--r);padding:1.1rem;margin-bottom:.875rem;box-shadow:var(--sh)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">'
+      +'<div><div style="font-family:monospace;font-size:.75rem;font-weight:700">'+o.id+'</div>'
+      +'<div style="font-size:.72rem;color:var(--g500)">'+o.fecha+'</div></div>'
+      +'<span class="pill '+stCls+'">'+o.estado+'</span></div>'
+      +'<div style="border:1px solid var(--g100);border-radius:var(--r);overflow:hidden;margin-bottom:.75rem">'+items+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-size:.78rem;font-weight:700;color:'+(o.metodo==='usdt'?'var(--usdt)':'var(--btc)')+'">'+o.metodo.toUpperCase()+'</span>'
+      +'<span style="font-family:\'Fraunces\',serif;font-size:1.2rem;font-weight:700;color:var(--b6)">'+fmt(o.total)+'</span></div>'
+      +workinBadge
+      +'</div>';
   }).join('');
 }
 
