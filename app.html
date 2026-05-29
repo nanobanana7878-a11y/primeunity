@@ -2399,7 +2399,12 @@ function doLogin() {
         el('la-err').style.display='none';
         // Limpiar referido del sessionStorage al hacer login
         try { sessionStorage.removeItem('oxivision_ref'); VENDEDOR_REF = null; } catch(e){}
-        return loadAfil(cUser.id).then(startApp);
+        return loadAfil(cUser.id).then(function(){
+          // Actualizar cUser con datos frescos de Supabase (puede haber cambiado desde el login)
+          var fresco = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0];
+          if (fresco) cUser = fresco;
+          startApp();
+        });
       });
     })
     .catch(function(e){
@@ -5576,7 +5581,11 @@ function restaurarSesion() {
     }).then(function(rows){
       if (rows && rows.length>0) {
         cRole='afil'; cUser=nAfil(rows[0]);
-        loadAfil(cUser.id).then(startApp);
+        loadAfil(cUser.id).then(function(){
+          var fresco = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0];
+          if (fresco) cUser = fresco;
+          startApp();
+        });
       }
     }).catch(function(e){ console.error('[Auth] Error restaurando sesión:', e); });
   }).catch(function(e){ console.error('[Auth] getSession error:', e); });
