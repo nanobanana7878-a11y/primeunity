@@ -2385,10 +2385,11 @@ function doLogin() {
       }
 
       // Es un afiliado — buscar su perfil por auth_id
-      return sbGet('afiliados','?auth_id=eq.'+authUser.id+'&limit=1').then(function(rows){
+      // Buscar afiliado SIEMPRE fresco
+      var ts2 = '&_t='+Date.now();
+      return sbGet('afiliados','?auth_id=eq.'+authUser.id+'&limit=1'+ts2).then(function(rows){
         if (!rows || rows.length===0) {
-          // Fallback: buscar por email (cuentas viejas sin auth_id)
-          return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1');
+          return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1'+ts2);
         }
         return rows;
       }).then(function(rows){
@@ -2396,13 +2397,15 @@ function doLogin() {
           throw new Error('No encontramos tu perfil de afiliado. Contacta al administrador.');
         }
         cRole='afil'; cUser=nAfil(rows[0]);
+        console.log('[Login] cUser:', cUser.nombre, '| tipo:', cUser.tipo, '| pkg:', cUser.pkg);
         el('la-err').style.display='none';
-        // Limpiar referido del sessionStorage al hacer login
         try { sessionStorage.removeItem('oxivision_ref'); VENDEDOR_REF = null; } catch(e){}
         return loadAfil(cUser.id).then(function(){
-          // Actualizar cUser con datos frescos de Supabase (puede haber cambiado desde el login)
           var fresco = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0];
-          if (fresco) cUser = fresco;
+          if (fresco) {
+            cUser = fresco;
+            console.log('[Login] cUser fresco:', cUser.tipo, cUser.pkg, cUser.paquetePagado);
+          }
           startApp();
         });
       });
@@ -5521,18 +5524,23 @@ function restaurarSesion() {
       loadAdmin().then(startApp);
       return;
     }
-    // Es afiliado — cargar su perfil
-    sbGet('afiliados','?auth_id=eq.'+session.user.id+'&limit=1').then(function(rows){
+    // Es afiliado — cargar su perfil SIEMPRE fresco (sin caché)
+    var ts = '&_t='+Date.now();
+    sbGet('afiliados','?auth_id=eq.'+session.user.id+'&limit=1'+ts).then(function(rows){
       if (!rows || rows.length===0) {
-        return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1');
+        return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1'+ts);
       }
       return rows;
     }).then(function(rows){
       if (rows && rows.length>0) {
         cRole='afil'; cUser=nAfil(rows[0]);
+        console.log('[Auth] cUser cargado:', cUser.nombre, '| tipo:', cUser.tipo, '| pkg:', cUser.pkg, '| pagado:', cUser.paquetePagado);
         loadAfil(cUser.id).then(function(){
           var fresco = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0];
-          if (fresco) cUser = fresco;
+          if (fresco) {
+            cUser = fresco;
+            console.log('[Auth] cUser actualizado fresco:', cUser.tipo, cUser.pkg, cUser.paquetePagado);
+          }
           startApp();
         });
       }
