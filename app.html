@@ -4551,9 +4551,11 @@ function submitOrder(){
   showLoading('Enviando pedido...');
   var itemsConPat = cart.map(function(c){var i={prodId:c.id,name:c.name,qty:c.qty,price:c.price};if(c._extra)i._extra=true;if(c._pkgName)i._pkgName=c._pkgName;if(c._tipoCompra)i._tipoCompra=c._tipoCompra;if(c._pkg)i._pkg=c._pkg;if(c._saldoPaquete)i._saldoPaquete=true;return i;});
   if(itemsConPat.length>0 && af.patrocinador) itemsConPat[0]._patrocinador=af.patrocinador;
-  // Detectar el rango del paquete AHORA (cuando tenemos contexto) y guardarlo en el pedido
-  var pkgDelPedido = pkgDePedido || (esPedidoSaldo ? af.pkg : null) ||
-    detectRangoFromItems(cart.map(function(c){ return {prodId:c.id,_pkg:c._pkg,_pkgName:c._pkgName,name:c.name,price:c.price}; })) ||
+  // Detectar el rango del paquete — NUNCA usar af.pkg como fuente (puede ser de otro afiliado en memoria)
+  // Usar SOLO: _pkg del carrito → precio total exacto
+  var pkgDelPedido = pkgDePedido ||
+    (cart[0] && cart[0]._pkg && RANGOS[cart[0]._pkg] ? cart[0]._pkg : null) ||
+    (cart[0] && cart[0]._pkgName && RANGOS[cart[0]._pkgName] ? cart[0]._pkgName : null) ||
     detectRangoFromTotal(total);
   // Asegurar que el primer item también lleva _pkg (doble respaldo)
   if (pkgDelPedido && itemsConPat.length > 0 && !itemsConPat[0]._pkg) {
@@ -4562,7 +4564,7 @@ function submitOrder(){
   if (pkgDelPedido && itemsConPat.length > 0) {
     itemsConPat[0]._saldoPaquete = true;
   }
-  console.log('[submitOrder] pkgDelPedido:', pkgDelPedido, 'total:', total, 'items:', itemsConPat.length);
+  console.log('[submitOrder] pkgDelPedido:', pkgDelPedido, 'total:', total, 'cart[0]._pkg:', cart[0]&&cart[0]._pkg, 'cart[0]._pkgName:', cart[0]&&cart[0]._pkgName);
   sbPost('pedidos',{id:ordId,afil_id:af.id,afil_nombre:af.nombre+' '+af.apellido,items:itemsConPat,total:total,metodo:curPay,txid:txid,estado:'Pendiente',fecha:today,pkg_pedido:pkgDelPedido||null})
     .then(function(){
       return sbPost('actividad',{tipo:'pedido',txt:'Nuevo pedido '+ordId+' de '+af.nombre+' '+af.apellido+(pkgDelPedido?' [Paquete '+pkgDelPedido+']':''),fecha:today});
