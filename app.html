@@ -3277,21 +3277,23 @@ function activarAfil(id) {
   var a = C.afiliados.filter(function(x){ return x.id===id; })[0];
   if (!a) return;
 
-  // Si ya está activo o ya recibió bono IR, no permitir duplicar
-  if (a.paquetePagado || a.bonoIRRecibido) {
-    showAlert('Este afiliado ya está activo. No se pueden duplicar Bono IR ni comisiones.','err');
-    return;
-  }
-
-  // Verificar si tiene pedido pendiente de aprobación
+  // Si tiene pedido pendiente → aprobarlo es la forma CORRECTA (actualiza rango + genera comisiones)
   var pedPendiente = C.pedidos.filter(function(o){
     return o.afilId === a.id && o.estado === 'Pendiente';
   })[0];
   if (pedPendiente) {
-    if (!confirm('⚠️ '+a.nombre+' tiene un pedido pendiente ('+pedPendiente.id+'). Es mejor APROBAR ese pedido en la pestaña "Pedidos" para que se generen comisiones correctamente.\n\n¿De todas formas activar manualmente? (NO se generarán comisiones de red)')) return;
-  } else {
-    if (!confirm('¿Activar a ' + a.nombre + ' ' + a.apellido + ' manualmente?\n\nEsto registrará Bono IR y comisiones de red como si hubiera pagado un pedido.')) return;
+    if (confirm('✅ '+a.nombre+' tiene el pedido '+pedPendiente.id+' pendiente.\n\n¿Aprobar ese pedido ahora? Actualizará el rango y generará comisiones en la red.')) {
+      _doApproveOrd(pedPendiente.id);
+    }
+    return;
   }
+
+  // Sin pedido — activación manual
+  if (a.paquetePagado || a.bonoIRRecibido) {
+    showAlert('Este afiliado ya está activo.','inf');
+    return;
+  }
+  if (!confirm('¿Activar a ' + a.nombre + ' ' + a.apellido + ' manualmente?\nRango: '+(a.pkg||'Sin rango'))) return;
   var pk = RANGOS[a.pkg] || {};
   var today = new Date().toISOString().slice(0,10);
   showLoading('Activando...');
