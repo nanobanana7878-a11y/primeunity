@@ -3880,11 +3880,21 @@ function buildPkgChooser(container) {
 
 function selPaquete(pkg) {
   var pk = RANGOS[pkg] || {};
-  var saldoPkg = pk.price || 0;
-  if (!saldoPkg) { showAlert('Paquete no encontrado.','err'); return; }
-  // Abrir modal de saldo directamente — NO guardar af.pkg aquí
-  // El rango se guarda en pkg_pedido al confirmar el pedido
-  abrirSaldoPaquete(saldoPkg, 'paquete', pkg);
+  if (!pk.price) { showAlert('Paquete no encontrado.','err'); return; }
+  var af = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0]||cUser;
+  // Buscar el producto de este paquete
+  var prod = C.productos.filter(function(p){ return p.cat==='paquete' && (p.rangoMin===pkg || detectRangoFromTotal(p.price)===pkg); })[0];
+  if (!prod) { showAlert('Producto del paquete '+pkg+' no encontrado en tienda.','err'); return; }
+  cart = [];
+  cart.push({
+    id:prod.id, code:prod.code, name:prod.name, price:prod.price,
+    qty:1, ico:prod.ico, fotos:prod.fotos||[],
+    _pkg: pkg, _pkgName: pkg,
+    _tipoCompra: 'paquete', _saldoPaquete: false
+  });
+  updateCartUI();
+  showAlert('📦 Paquete '+pkg+' agregado. Ve al carrito para pagar.','suc');
+  setTimeout(function(){ toggleCart(); }, 500);
 }
 
 // ═══════════════════════════════
@@ -4087,24 +4097,26 @@ function chgQty(id,d){qtyMap[id]=Math.max(1,(qtyMap[id]||1)+d);var e=el('qty-'+i
 function addCart(id){
   var p=C.productos.filter(function(x){return x.id===id;})[0];
   if(!p)return;
-  // Si es un PAQUETE y el usuario es afiliado → flujo especial de saldo
+  // Si es un PAQUETE y el usuario es afiliado → flujo de popup de opciones
   if (p.cat==='paquete' && cRole==='afil') {
     var af = C.afiliados.filter(function(a){return a.id===cUser.id;})[0]||cUser;
     if (af && af.paquetePagado) {
-      // Ya tiene paquete activo → mostrar popup de opciones (recompra / adicional / upgrade)
       abrirPopupCompraPaquete(p);
       return;
     } else {
-      // Primera compra de paquete → abrir modal de saldo directamente
+      // Primera compra — agregar directo al carrito con metadatos
       var rngProd = p.rangoMin || detectRangoFromTotal(p.price);
-      if (!rngProd) {
-        showAlert('Este paquete no tiene rango configurado. Contacta al administrador.','err');
-        return;
-      }
-      var pkProd = RANGOS[rngProd] || {};
-      var saldo = pkProd.price || p.price;
-      // Abrir modal directamente — NO guardar en Supabase todavía
-      abrirSaldoPaquete(saldo, 'paquete', rngProd);
+      if (!rngProd) { showAlert('Este paquete no tiene rango configurado.','err'); return; }
+      cart = []; // carrito limpio para pedido de paquete
+      cart.push({
+        id:p.id, code:p.code, name:p.name, price:p.price,
+        qty:1, ico:p.ico, fotos:p.fotos||[],
+        _pkg: rngProd, _pkgName: rngProd,
+        _tipoCompra: 'paquete', _saldoPaquete: false
+      });
+      updateCartUI();
+      showAlert('📦 Paquete '+rngProd+' agregado. Ve al carrito para pagar.','suc');
+      setTimeout(function(){ toggleCart(); }, 500);
       return;
     }
   }
