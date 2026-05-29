@@ -2963,13 +2963,21 @@ function renderAdmPedidos() {
       if (pkgDet && RANGOS[pkgDet]) {
         pkgBadge = '<div style="margin-top:3px"><span style="font-size:.62rem;background:var(--b1);color:var(--b6);padding:1px 5px;border-radius:4px;font-weight:600">📦 '+pkgDet+'</span></div>';
       }
+      // ¿Está en WorkIn?
+      var af2 = C.afiliados.filter(function(a){ return a.id===o.afilId; })[0];
+      var enWorkin = af2 && (af2.workins||[]).some(function(w){ return w.estado==='activo'; });
+      if (enWorkin) {
+        pkgBadge += '<div style="margin-top:2px"><span style="font-size:.62rem;background:#dcfce7;color:#065f46;padding:1px 5px;border-radius:4px;font-weight:700">⚡ WorkIn — NO enviar</span></div>';
+      }
       act = o.estado==='Pendiente'
         ? '<div style="display:flex;gap:.3rem;flex-wrap:wrap">'+
           '<button class="btn bg bsm2" data-id="'+o.id+'" onclick="approveOrd(this.dataset.id)">✓ Aprobar</button>'+
           '<button class="btn bo bsm2" data-id="'+o.id+'" onclick="editRangoPedido(this.dataset.id)" title="Editar rango">📦</button>'+
           '<button class="btn br bsm2" data-id="'+o.id+'" onclick="rejectOrd(this.dataset.id)">✕</button>'+
           '</div>'
-        : '';
+        : (o.estado==='Aprobado' && enWorkin
+          ? '<span style="font-size:.72rem;color:#065f46;font-weight:700">⚡ En WorkIn</span>'
+          : '');
     }
     return '<tr><td class="fw" style="font-family:monospace;font-size:.7rem">'+o.id+'</td>'+
       '<td>'+quien+(pkgBadge||'')+'</td>'+
@@ -3202,6 +3210,70 @@ function editRangoPedido(ordId) {
     .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
 }
 
+// ── Admin: pagar cobro mensual WorkIn ──
+function pagarWorkinMensual(afilId) {
+  var af = C.afiliados.filter(function(a){ return a.id===afilId; })[0];
+  if (!af) return;
+  var workins = (af.workins||[]).slice();
+  var activos = workins.filter(function(w){ return w.estado==='activo'; });
+  if (!activos.length) { showAlert('Este afiliado no tiene WorkIn activo.','err'); return; }
+  var today = new Date().toISOString().slice(0,10);
+  var totalPago = 0;
+  var updates = [];
+  activos.forEach(function(w) {
+    var pk2 = RANGOS[w.rango]||{};
+    var rend = pk2.price * WORKIN_REND;
+    w.gananciaAcum = (w.gananciaAcum||0) + rend;
+    w.cobros = (w.cobros||[]).concat([{fecha:today, monto:rend}]);
+    totalPago += rend;
+    // Verificar si completó 90 días
+    var inicio = new Date(w.fechaInicio);
+    var diasPasados = Math.floor((new Date()-inicio)/(1000*60*60*24));
+    if (diasPasados >= 90) w.estado = 'listo_entregar';
+  });
+  if (!confirm('¿Registrar pago WorkIn mensual de '+fmt(totalPago)+' para '+af.nombre+'?')) return;
+  showLoading('Registrando pago...');
+  // Registrar el pago en tabla pagos
+  updates.push(sbPost('pagos', {
+    id: 'WKP'+Date.now().toString().slice(-8),
+    afil_id: af.id,
+    afil_nombre: af.nombre+' '+af.apellido,
+    monto: totalPago,
+    concepto: 'WorkIn mensual — '+activos.length+' paquete(s) '+activos.map(function(w){return w.rango;}).join(', '),
+    fecha: today,
+    estado: 'Pendiente'
+  }));
+  // Actualizar workins del afiliado
+  updates.push(sbPatch('afiliados', {workins: workins}, '?id=eq.'+af.id));
+  // Generar comisiones de red por el WorkIn mensual (igual que recompra)
+  var curAfil = af;
+  var pk3 = RANGOS[af.pkg]||{};
+  for (var nv=1; nv<=10; nv++) {
+    if (!curAfil||!curAfil.patrocinador) break;
+    var sp2 = C.afiliados.filter(function(a){ return a.refCode===curAfil.patrocinador; })[0];
+    if (!sp2||!sp2.activo) break;
+    var pkSp2 = RANGOS[sp2.pkg]||{};
+    if (nv<=(pkSp2.niveles||1)) {
+      var pctW = NCOM[nv]||0;
+      var comW = Math.round(totalPago*pctW*100)/100;
+      if (comW>0) updates.push(sbPost('pagos',{
+        id:'WKC'+today.replace(/-/g,'')+nv+Math.random().toString(36).slice(-3).toUpperCase(),
+        afil_id:sp2.id, afil_nombre:sp2.nombre+' '+sp2.apellido,
+        monto:comW, concepto:'Com. WorkIn N'+nv+' — '+af.nombre+' ['+today+']',
+        fecha:today, estado:'Pendiente'
+      }));
+    }
+    curAfil = sp2;
+  }
+  Promise.all(updates)
+    .then(function(){ return loadAdmin(); })
+    .then(function(){
+      renderAdmPedidos();
+      showAlert('✅ Pago WorkIn de '+fmt(totalPago)+' registrado para '+af.nombre+'.','suc');
+    })
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+}
+
 function rejectOrd(id) {
   if(!confirm('¿Rechazar este pedido?')) return;
   showLoading('Rechazando...'); sbPatch('pedidos',{estado:'Rechazado'},'?id=eq.'+id).then(function(){return loadAdmin();}).then(function(){renderAdmPedidos();showAlert('Pedido rechazado.','err');}).catch(function(e){hideLoading();showAlert('Error: '+e.message,'err');});
@@ -3233,7 +3305,12 @@ function renderAdmAfil() {
     var convertirBtn = (a.tipo === 'promotor' && a.paquetePagado)
       ? '<button class="btn bb bsm2" data-id="'+a.id+'" onclick="convertirAAfiliado(this.dataset.id)" title="Convertir a Afiliado MLM">🔄 Convertir</button>'
       : '';
-    rows+='<tr><td><div style="display:flex;align-items:center;gap:.5rem"><span style="font-family:monospace;font-size:.7rem;background:var(--g100);padding:.1rem .4rem;border-radius:4px;color:var(--b6)">'+a.id+'</span>'+upgradeTag+'</div><div class="fw" style="margin-top:.1rem">'+a.nombre+' '+a.apellido+' '+(a.tipo==='promotor'?'<span style="font-size:.6rem;background:#dbeafe;color:#1e40af;padding:.1rem .35rem;border-radius:4px;font-weight:700">PROMOTOR</span>':'<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:.1rem .35rem;border-radius:4px;font-weight:700">AFILIADO</span>')+'</div><div style="font-size:.7rem;color:var(--g400)">'+a.email+'</div></td><td>'+rangoHTML(a.pkg)+'</td><td style="font-size:.78rem">'+patNm+'</td><td>'+estadoTd+'</td><td><span class="pill '+(rc&&rc.pagado?'ok':'pend')+'">'+(rc&&rc.pagado?'Al día':'Pendiente')+'</span></td><td>'+bonoTd+'</td><td style="color:var(--amber);font-weight:700">⭐ '+pts+'</td><td style="display:flex;gap:.35rem;flex-wrap:wrap">'+activarBtn+convertirBtn+'<button class="btn bgh bsm2" data-id="'+a.id+'" data-em="'+a.email+'" onclick="adminResetPass(this.dataset.id,this.dataset.em)">🔑</button>'+
+    // Botón WorkIn mensual
+    var workinActivo = (a.workins||[]).some(function(w){ return w.estado==='activo'; });
+    var workinBtn = workinActivo
+      ? '<button class="btn" style="background:#065f46;color:#fff" data-id="'+a.id+'" onclick="pagarWorkinMensual(this.dataset.id)" title="Pagar WorkIn mensual">⚡ WorkIn</button>'
+      : '';
+    rows+='<tr><td><div style="display:flex;align-items:center;gap:.5rem"><span style="font-family:monospace;font-size:.7rem;background:var(--g100);padding:.1rem .4rem;border-radius:4px;color:var(--b6)">'+a.id+'</span>'+upgradeTag+'</div><div class="fw" style="margin-top:.1rem">'+a.nombre+' '+a.apellido+' '+(a.tipo==='promotor'?'<span style="font-size:.6rem;background:#dbeafe;color:#1e40af;padding:.1rem .35rem;border-radius:4px;font-weight:700">PROMOTOR</span>':'<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:.1rem .35rem;border-radius:4px;font-weight:700">AFILIADO</span>')+'</div><div style="font-size:.7rem;color:var(--g400)">'+a.email+'</div></td><td>'+rangoHTML(a.pkg)+'</td><td style="font-size:.78rem">'+patNm+'</td><td>'+estadoTd+'</td><td><span class="pill '+(rc&&rc.pagado?'ok':'pend')+'">'+(rc&&rc.pagado?'Al día':'Pendiente')+'</span></td><td>'+bonoTd+'</td><td style="color:var(--amber);font-weight:700">⭐ '+pts+'</td><td style="display:flex;gap:.35rem;flex-wrap:wrap">'+activarBtn+convertirBtn+workinBtn+'<button class="btn bgh bsm2" data-id="'+a.id+'" data-em="'+a.email+'" onclick="adminResetPass(this.dataset.id,this.dataset.em)">🔑</button>'+
 '<button class="btn bo bsm2" data-id="'+a.id+'" data-ref="'+a.refCode+'" data-pat="'+(a.patrocinador||'')+'" data-nm="'+a.nombre+' '+a.apellido+'" onclick="adminEditPatrocinador(this.dataset.id,this.dataset.nm,this.dataset.pat)" title="Editar patrocinador">🔗</button>'+
 '<button class="btn br bsm2" data-id="'+a.id+'" data-nm="'+a.nombre+' '+a.apellido+'" onclick="confirmDel(this.dataset.id,this.dataset.nm)">🗑️</button></td></tr>';
   });
