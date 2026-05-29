@@ -4500,8 +4500,10 @@ function activarWorkin() {
   sbPatch('afiliados', {workins: workins}, '?id=eq.'+af.id)
     .then(function(){ return loadAfil(af.id); })
     .then(function(){
-      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0]||cUser;
+      var fresco = C.afiliados.filter(function(a){ return a.id===af.id; })[0];
+      if (fresco) cUser = fresco;
       renderWorkIn();
+      hideLoading();
       showAlert('✅ WorkIn activado. Ganarás '+fmt(pk.price*WORKIN_REND)+'/mes durante 90 días.','suc');
     })
     .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
