@@ -1121,8 +1121,10 @@ document.querySelectorAll('.reveal').forEach(function(el){ obsLanding.observe(el
       <div id="mis-ords-wrap"></div>
     </div>
 
-    <!-- MI RED -->
-    <div class="sec" id="sec-afil-red">
+    <!-- WORKIN -->
+    <div class="sec" id="sec-afil-workin">
+      <div id="workin-body"></div>
+    </div>
       <h2 class="sec-title">Mi Red de Distribuidores</h2>
       <div class="kpig" id="red-kpis"></div>
       <div class="card" style="margin-bottom:1rem">
@@ -2624,6 +2626,7 @@ function buildTabs() {
     {id:'tienda',lbl:'🛒 Tienda'},
     {id:'mis-ords',lbl:'📋 Pedidos'},
     {id:'afil-red',lbl:'🌐 Mi Red'},
+    {id:'afil-workin',lbl:'⚡ WorkIn'},
     {id:'afil-pts',lbl:'⭐ Puntos'},
     {id:'afil-com',lbl:'💰 Comisiones'},
     {id:'afil-wallet',lbl:'💳 Mi Wallet',bdg:'pend-ret'},
@@ -2661,7 +2664,8 @@ function goSec(id, btn) {
     'sec-tienda':     function(){refreshAll().then(renderTienda);},
     'sec-checkout':   renderCheckout,
     'sec-mis-ords':   function(){refreshAll().then(renderMisOrds);},
-    'sec-afil-red':   function(){refreshAll().then(renderRed);},
+    'sec-afil-workin':  function(){refreshAll().then(renderWorkIn);},
+  'sec-afil-red':   function(){refreshAll().then(renderRed);},
     'sec-afil-pts':   function(){refreshAll().then(renderPuntos);},
     'sec-afil-com':   function(){refreshAll().then(renderAfilCom);},
     'sec-afil-inv':   renderAfilInv,
@@ -4236,8 +4240,214 @@ function _iniciarCompraPaquete(prodId, rngProd) {
 }
 
 // ═══════════════════════════════
-// SALDO DE PAQUETE
+// WORKIN — Plan de Renta de Inventario
 // ═══════════════════════════════
+var WORKIN_DIAS = 90;
+var WORKIN_REND = 0.20; // 20% mensual
+var WORKIN_MAX  = 5;    // máx paquetes por rango
+
+function renderWorkIn() {
+  var af = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0]||cUser;
+  var pk = RANGOS[af.pkg]||{};
+  var workins = af.workins || [];
+  var activos = workins.filter(function(w){ return w.estado==='activo'; });
+  var completados = workins.filter(function(w){ return w.estado==='completado'; });
+  var hoy = new Date();
+
+  // Calcular ganancia total WorkIn
+  var gananciaTotal = workins.reduce(function(s,w){ return s+(w.gananciaAcum||0); },0);
+
+  var html = '<div style="max-width:700px;margin:0 auto">';
+
+  // Header
+  html += '<div style="background:linear-gradient(135deg,#1e3a5f,#0f6e56);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;color:#fff">'
+    +'<div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem">'
+    +'<div style="font-size:2.5rem">⚡</div>'
+    +'<div><div style="font-size:1.3rem;font-weight:800">Plan WorkIn</div>'
+    +'<div style="font-size:.85rem;opacity:.85">Activa tus paquetes · 20% mensual · 90 días</div></div></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem">'
+    +'<div style="background:rgba(255,255,255,.12);border-radius:10px;padding:.75rem;text-align:center">'
+    +'<div style="font-size:.7rem;opacity:.7;text-transform:uppercase">Activos</div>'
+    +'<div style="font-size:1.6rem;font-weight:800">'+activos.length+'/'+WORKIN_MAX+'</div></div>'
+    +'<div style="background:rgba(255,255,255,.12);border-radius:10px;padding:.75rem;text-align:center">'
+    +'<div style="font-size:.7rem;opacity:.7;text-transform:uppercase">Ganancia total</div>'
+    +'<div style="font-size:1.6rem;font-weight:800">'+fmt(gananciaTotal)+'</div></div>'
+    +'<div style="background:rgba(255,255,255,.12);border-radius:10px;padding:.75rem;text-align:center">'
+    +'<div style="font-size:.7rem;opacity:.7;text-transform:uppercase">Rendimiento</div>'
+    +'<div style="font-size:1.6rem;font-weight:800">20%/mes</div></div>'
+    +'</div></div>';
+
+  // Botón activar nuevo
+  if (!af.paquetePagado) {
+    html += '<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:12px;padding:1rem;margin-bottom:1.5rem;text-align:center;font-size:.875rem;color:#92400e">⚠️ Necesitas un paquete activo para usar WorkIn.</div>';
+  } else if (activos.length < WORKIN_MAX) {
+    html += '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem">'
+      +'<div style="font-weight:700;margin-bottom:.5rem;color:#065f46">⚡ Activar nuevo WorkIn — '+af.pkg+'</div>'
+      +'<div style="font-size:.82rem;color:#047857;margin-bottom:1rem">'
+      +'Valor: <strong>'+fmt(pk.price)+'</strong> · Ganancia: <strong>'+fmt(pk.price*WORKIN_REND)+'/mes</strong> · Plazo: <strong>90 días</strong> · Al finalizar: goteros físicos'
+      +'</div>'
+      +'<button class="btn bb" style="width:100%;padding:.9rem;font-size:1rem" onclick="activarWorkin()">⚡ Activar paquete WorkIn ('+fmt(pk.price)+')</button>'
+      +'<div style="font-size:.72rem;color:var(--g400);margin-top:.5rem;text-align:center">No retirable hasta cumplir los 90 días · Máx '+WORKIN_MAX+' paquetes</div>'
+      +'</div>';
+  } else {
+    html += '<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:12px;padding:1rem;margin-bottom:1.5rem;text-align:center;font-size:.875rem;color:#92400e">Has alcanzado el máximo de '+WORKIN_MAX+' paquetes WorkIn activos.</div>';
+  }
+
+  // Paquetes activos con temporizador
+  if (activos.length) {
+    html += '<h3 style="margin-bottom:.75rem;font-size:1rem;font-weight:700">🟢 Paquetes activos</h3>';
+    activos.forEach(function(w,i) {
+      var inicio = new Date(w.fechaInicio);
+      var fin = new Date(inicio.getTime() + WORKIN_DIAS*24*60*60*1000);
+      var diasTotal = WORKIN_DIAS;
+      var diasPasados = Math.min(Math.floor((hoy-inicio)/(1000*60*60*24)), diasTotal);
+      var diasRestantes = Math.max(0, diasTotal - diasPasados);
+      var mesesPasados = Math.floor(diasPasados/30);
+      var gananciaAcum = w.gananciaAcum || 0;
+      var pct = Math.round((diasPasados/diasTotal)*100);
+      var pk2 = RANGOS[w.rango]||{};
+      var rendMensual = (pk2.price||0)*WORKIN_REND;
+
+      // Próximo cobro
+      var diasProxCobro = 30 - (diasPasados%30);
+      var proxCobro = new Date(hoy.getTime() + diasProxCobro*24*60*60*1000);
+
+      html += '<div style="background:#fff;border:1.5px solid #86efac;border-radius:14px;padding:1.25rem;margin-bottom:1rem;box-shadow:0 2px 8px rgba(0,0,0,.06)">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">'
+        +'<div><div style="font-weight:700;font-size:1rem">⚡ WorkIn #'+(i+1)+' — '+(pk2.ico||'')+' '+w.rango+'</div>'
+        +'<div style="font-size:.75rem;color:var(--g500)">Activado: '+w.fechaInicio.slice(0,10)+'</div></div>'
+        +'<div style="text-align:right"><div style="font-size:1.2rem;font-weight:800;color:#059669">'+fmt(gananciaAcum)+'</div>'
+        +'<div style="font-size:.7rem;color:var(--g400)">ganado</div></div></div>'
+
+        // Barra progreso
+        +'<div style="margin-bottom:.75rem">'
+        +'<div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--g500);margin-bottom:.25rem">'
+        +'<span>Día '+diasPasados+' de '+diasTotal+'</span><span>'+pct+'%</span></div>'
+        +'<div style="height:8px;background:var(--g100);border-radius:4px;overflow:hidden">'
+        +'<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#059669,#10b981);border-radius:4px;transition:.3s"></div></div></div>'
+
+        // Temporizador
+        +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem" id="timer-'+w.id+'">'
+        +'<div style="background:#f0fdf4;border-radius:8px;padding:.6rem;text-align:center">'
+        +'<div style="font-size:1.4rem;font-weight:800;color:#059669" id="tw-d-'+w.id+'">'+diasRestantes+'</div>'
+        +'<div style="font-size:.65rem;color:var(--g500)">DÍAS</div></div>'
+        +'<div style="background:#f0fdf4;border-radius:8px;padding:.6rem;text-align:center">'
+        +'<div style="font-size:1.4rem;font-weight:800;color:#059669" id="tw-h-'+w.id+'">--</div>'
+        +'<div style="font-size:.65rem;color:var(--g500)">HORAS</div></div>'
+        +'<div style="background:#f0fdf4;border-radius:8px;padding:.6rem;text-align:center">'
+        +'<div style="font-size:1.4rem;font-weight:800;color:#059669" id="tw-m-'+w.id+'">--</div>'
+        +'<div style="font-size:.65rem;color:var(--g500)">MINUTOS</div></div></div>'
+
+        // Info cobros
+        +'<div style="display:flex;justify-content:space-between;font-size:.78rem;padding:.6rem .75rem;background:#f8fafc;border-radius:8px">'
+        +'<div>💰 Próximo cobro: <strong>'+fmt(rendMensual)+'</strong> en <strong>'+diasProxCobro+' días</strong></div>'
+        +'<div>📦 Entrega: '+fin.toLocaleDateString('es')+'</div></div>'
+        +(diasRestantes===0?'<button class="btn bg" style="width:100%;margin-top:.75rem" onclick="cobrarWorkin(\''+w.id+'\')">🎉 ¡Retirar y recibir goteros!</button>':'')
+        +'</div>';
+    });
+  }
+
+  // Historial completados
+  if (completados.length) {
+    html += '<h3 style="margin-bottom:.75rem;font-size:1rem;font-weight:700;margin-top:1rem">✅ Completados</h3>';
+    completados.forEach(function(w) {
+      html += '<div style="background:#f8fafc;border:1px solid var(--g200);border-radius:12px;padding:1rem;margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center">'
+        +'<div><div style="font-weight:600">⚡ '+w.rango+' — '+w.fechaInicio.slice(0,10)+'</div>'
+        +'<div style="font-size:.75rem;color:var(--g400)">Completado: '+w.fechaFin.slice(0,10)+'</div></div>'
+        +'<div style="text-align:right"><div style="font-weight:700;color:#059669">'+fmt(w.gananciaAcum)+'</div>'
+        +'<div style="font-size:.7rem;color:var(--g400)">ganado</div></div></div>';
+    });
+  }
+
+  html += '</div>';
+  el('workin-body').innerHTML = html;
+
+  // Iniciar temporizadores en tiempo real
+  activos.forEach(function(w) {
+    iniciarTimerWorkin(w);
+  });
+}
+
+function iniciarTimerWorkin(w) {
+  var inicio = new Date(w.fechaInicio);
+  var fin = new Date(inicio.getTime() + WORKIN_DIAS*24*60*60*1000);
+  function tick() {
+    var ahora = new Date();
+    var diff = fin - ahora;
+    if (diff <= 0) {
+      var ed = document.getElementById('tw-d-'+w.id);
+      var eh = document.getElementById('tw-h-'+w.id);
+      var em = document.getElementById('tw-m-'+w.id);
+      if(ed) ed.textContent='0';
+      if(eh) eh.textContent='0';
+      if(em) em.textContent='0';
+      return;
+    }
+    var dias = Math.floor(diff/(1000*60*60*24));
+    var hrs  = Math.floor((diff%(1000*60*60*24))/(1000*60*60));
+    var mins = Math.floor((diff%(1000*60*60))/(1000*60));
+    var ed = document.getElementById('tw-d-'+w.id);
+    var eh = document.getElementById('tw-h-'+w.id);
+    var em = document.getElementById('tw-m-'+w.id);
+    if(ed) ed.textContent=dias;
+    if(eh) eh.textContent=hrs;
+    if(em) em.textContent=mins;
+  }
+  tick();
+  setInterval(tick, 60000);
+}
+
+function activarWorkin() {
+  var af = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0]||cUser;
+  var pk = RANGOS[af.pkg]||{};
+  var workins = (af.workins||[]).slice();
+  var activos = workins.filter(function(w){ return w.estado==='activo'; });
+  if (activos.length >= WORKIN_MAX) { showAlert('Máximo '+WORKIN_MAX+' paquetes WorkIn activos.','err'); return; }
+  if (!af.paquetePagado) { showAlert('Necesitas un paquete activo.','err'); return; }
+  if (!confirm('¿Activar WorkIn '+af.pkg+' por 90 días?\n\nGanarás '+fmt(pk.price*WORKIN_REND)+'/mes durante 3 meses.\nAl día 90 recibes tus goteros.\n\n¡No retirable hasta cumplir el plazo!')) return;
+
+  var hoy = new Date().toISOString();
+  var wId = 'WK'+Date.now().toString().slice(-8);
+  var nuevoWorkin = {
+    id: wId,
+    rango: af.pkg,
+    precio: pk.price,
+    rendMensual: pk.price * WORKIN_REND,
+    fechaInicio: hoy,
+    estado: 'activo',
+    gananciaAcum: 0,
+    cobros: []
+  };
+  workins.push(nuevoWorkin);
+  showLoading('Activando WorkIn...');
+  sbPatch('afiliados', {workins: workins}, '?id=eq.'+af.id)
+    .then(function(){ return loadAfil(af.id); })
+    .then(function(){
+      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0]||cUser;
+      renderWorkIn();
+      showAlert('✅ WorkIn activado. Ganarás '+fmt(pk.price*WORKIN_REND)+'/mes durante 90 días.','suc');
+    })
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+}
+
+function cobrarWorkin(wId) {
+  var af = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0]||cUser;
+  var workins = (af.workins||[]).slice();
+  var w = workins.filter(function(x){ return x.id===wId; })[0];
+  if (!w) return;
+  if (!confirm('¿Retirar WorkIn y recibir tus goteros?\n\nGanancia total: '+fmt(w.gananciaAcum)+'\n\nLos goteros serán enviados a tu dirección.')) return;
+  w.estado = 'completado';
+  w.fechaFin = new Date().toISOString();
+  showLoading('Procesando retiro...');
+  sbPatch('afiliados', {workins: workins}, '?id=eq.'+af.id)
+    .then(function(){ return loadAfil(af.id); })
+    .then(function(){
+      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0]||cUser;
+      renderWorkIn();
+      showAlert('🎉 WorkIn completado. Tus goteros serán enviados pronto.','suc');
+    })
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+}
 var _spSaldo = 0;
 var _spTipo = '';
 var _spPkgName = '';
