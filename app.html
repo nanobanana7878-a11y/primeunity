@@ -2303,6 +2303,11 @@ function loadAfil(id) {
     });
     C.pedidos = todosPedidos;
     C.actividad = [];
+    // SIEMPRE actualizar cUser con datos frescos de Supabase
+    var afilFresco = C.afiliados.filter(function(a){ return a.id===id; })[0];
+    if (afilFresco && cUser && cUser.id === id) {
+      cUser = afilFresco;
+    }
     hideLoading();
   }).catch(function(e){ hideLoading(); console.error(e); });
 }
