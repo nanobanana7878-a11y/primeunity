@@ -2238,7 +2238,7 @@ function sbDel(t,q){ return sbFetch(t,'DELETE',null,q); }
 // ═══════════════════════════════
 function nAfil(r){ return r ? { id:r.id, authId:r.auth_id||'', tipo:r.tipo||'promotor', nombre:r.nombre, apellido:r.apellido, email:r.email, pass:r.pass, tel:r.tel, pkg:r.pkg, patrocinador:r.patrocinador||'', refCode:r.ref_code||'', activo:r.activo, fechaReg:r.fecha_reg||'', acumulado:r.acumulado||0, paquetePagado:r.paquete_pagado||false, puntos:r.puntos||0, puntosCanjeados:r.puntos_canjeados||0, walletUsdt:r.wallet_usdt||'', walletBtc:r.wallet_btc||'', walletPref:r.wallet_pref||'usdt', pkgAnterior:r.pkg_anterior||'', fechaUpgrade:r.fecha_upgrade||'', bonoIRRecibido:r.bono_ir_recibido||false, paquetesAcum:r.paquetes_acum||[] } : null; }
 function nProd(r){ return r ? { id:r.id, code:r.code, name:r.name, desc:r.descripcion||'', descLarga:r.desc_larga||'', beneficios:r.beneficios||[], price:r.price, stock:r.stock, minStock:r.min_stock||20, ico:r.ico||'📦', cat:r.cat||'producto', rangoMin:r.rango_min||'', visible:r.visible, fotos:r.fotos||[] } : null; }
-function nPed(r){ var its=r&&r.items?r.items:[]; var pat=(its[0]&&its[0]._patrocinador)||''; return r ? { id:r.id, afilId:r.afil_id, afil:r.afil_nombre||'', items:its, total:r.total, metodo:r.metodo, txid:r.txid||'', estado:r.estado, fecha:r.fecha||'', clienteNombre:r.cliente_nombre||'', clienteTel:r.cliente_tel||'', clienteDir:r.cliente_dir||'', vendedorRef:r.vendedor_ref||'', cantGoteros:r.cant_goteros||0, comisionesGeneradas:r.comisiones_generadas||false, patrocinadorRef:pat } : null; }
+function nPed(r){ var its=r&&r.items?r.items:[]; var pat=(its[0]&&its[0]._patrocinador)||''; return r ? { id:r.id, afilId:r.afil_id, afil:r.afil_nombre||'', items:its, total:r.total, metodo:r.metodo, txid:r.txid||'', estado:r.estado, fecha:r.fecha||'', clienteNombre:r.cliente_nombre||'', clienteTel:r.cliente_tel||'', clienteDir:r.cliente_dir||'', vendedorRef:r.vendedor_ref||'', cantGoteros:r.cant_goteros||0, comisionesGeneradas:r.comisiones_generadas||false, patrocinadorRef:pat, pkgPedido:r.pkg_pedido||null } : null; }
 function nPago(r){ return r ? { id:r.id, afilId:r.afil_id, afil:r.afil_nombre||'', monto:r.monto, concepto:r.concepto, fecha:r.fecha, estado:r.estado } : null; }
 function nRec(r){ return r ? { id:r.id, afilId:r.afil_id, mes:r.mes, monto:r.monto, pagado:r.pagado, fecha:r.fecha, metodo:r.metodo||'', diaPago:r.dia_pago||1, aTiempo:r.a_tiempo!==false, diasActivos:r.dias_activos||30, numPaquete:r.num_paquete||1, fechaPago:r.fecha_pago||'' } : null; }
 function nCanje(r){ return r ? { id:r.id, afilId:r.afil_id, afil:r.afil_nombre||'', premioId:r.premio_id, premio:r.premio, puntos:r.puntos, fecha:r.fecha, estado:r.estado } : null; }
@@ -2940,13 +2940,22 @@ function renderAdmPedidos() {
       // Pedido de afiliado (modelo paquetes) — comportamiento original
       quien = o.afil;
       metodo = '<span style="font-weight:700;color:'+(o.metodo==='usdt'?'var(--usdt)':'var(--btc)')+'">'+(o.metodo||'').toUpperCase()+'</span>';
+      // Detectar rango del pedido para mostrar badge y botón de edición
+      var pkgBadge = '';
+      var pkgDet = o.pkgPedido || detectRangoFromTotal(o.total) || detectRangoFromItems(o.items);
+      if (pkgDet && RANGOS[pkgDet]) {
+        pkgBadge = '<div style="margin-top:3px"><span style="font-size:.62rem;background:var(--b1);color:var(--b6);padding:1px 5px;border-radius:4px;font-weight:600">📦 '+pkgDet+'</span></div>';
+      }
       act = o.estado==='Pendiente'
-        ? '<button class="btn bg bsm2" data-id="'+o.id+'" onclick="approveOrd(this.dataset.id)">✓</button>'+
-          '<button class="btn br bsm2" data-id="'+o.id+'" onclick="rejectOrd(this.dataset.id)" style="margin-left:.3rem">✕</button>'
+        ? '<div style="display:flex;gap:.3rem;flex-wrap:wrap">'+
+          '<button class="btn bg bsm2" data-id="'+o.id+'" onclick="approveOrd(this.dataset.id)">✓ Aprobar</button>'+
+          '<button class="btn bo bsm2" data-id="'+o.id+'" onclick="editRangoPedido(this.dataset.id)" title="Editar rango">📦</button>'+
+          '<button class="btn br bsm2" data-id="'+o.id+'" onclick="rejectOrd(this.dataset.id)">✕</button>'+
+          '</div>'
         : '';
     }
     return '<tr><td class="fw" style="font-family:monospace;font-size:.7rem">'+o.id+'</td>'+
-      '<td>'+quien+'</td>'+
+      '<td>'+quien+(pkgBadge||'')+'</td>'+
       '<td style="font-size:.75rem">'+items+'</td>'+
       '<td style="color:var(--green);font-weight:700">'+fmt(o.total)+'</td>'+
       '<td>'+metodo+'</td>'+
@@ -3129,130 +3138,108 @@ function _doApproveOrd(id) {
       return;
     }
 
-    // ── Detectar si es un paquete (entrada o upgrade) ──
-    // Método 1: por categoría de producto
-    var hasPkgCat = o.items.some(function(it){
-      var pr = C.productos.filter(function(x){ return x.id===it.prodId; })[0];
-      return pr && (pr.cat==='paquete');
-    });
-    // Método 1b: por _saldoPaquete o _tipoCompra en items
-    var hasSaldoPaq = o.items.some(function(it){
-      return it._saldoPaquete || it._tipoCompra === 'paquete' || it._tipoCompra === 'upgrade';
-    });
-    // Método 1c: afiliado sin paquete pagado → cualquier pedido es su compra de entrada
-    var esEntradaAfil = !af.paquetePagado && af.pkg && RANGOS[af.pkg];
-    // Método 2: por precio total coincide con un rango
-    var rangoByTotal = detectRangoFromTotal(o.total);
-    // Método 3: por nombre/precio de items
-    var rangoByItems = detectRangoFromItems(o.items);
-    // Resultado final
-    var esPaquete = hasPkgCat || hasSaldoPaq || esEntradaAfil || rangoByTotal || rangoByItems;
-    console.log('[approveOrd] esPaquete:', esPaquete, 'hasPkgCat:', hasPkgCat, 'hasSaldoPaq:', hasSaldoPaq, 'esEntradaAfil:', !!esEntradaAfil, 'rangoByTotal:', rangoByTotal, 'rangoByItems:', rangoByItems);
-    var newPkg = rangoByItems || rangoByTotal;
-    // Si no detectamos por los métodos normales pero hay _saldoPaquete, buscar _pkg directo
-    if (!newPkg && hasSaldoPaq) {
-      for (var si=0; si<o.items.length; si++) {
-        if (o.items[si]._pkg && RANGOS[o.items[si]._pkg]) { newPkg = o.items[si]._pkg; break; }
-        if (o.items[si]._pkgName && RANGOS[o.items[si]._pkgName]) { newPkg = o.items[si]._pkgName; break; }
+    // ══════════════════════════════════════════════════════
+    // DETECCIÓN DE RANGO — orden de prioridad:
+    // 1. pkg_pedido (guardado al crear el pedido) — más confiable
+    // 2. _pkg en items del pedido
+    // 3. af.pkg cuando paquetePagado=false (primera compra)
+    // 4. detectRangoFromTotal (precio exacto)
+    // ══════════════════════════════════════════════════════
+    var newPkg = null;
+
+    // PRIORIDAD 1: campo pkg_pedido directo
+    if (o.pkgPedido && RANGOS[o.pkgPedido]) {
+      newPkg = o.pkgPedido;
+      console.log('[approveOrd] ✓ P1 pkg_pedido:', newPkg);
+    }
+    // PRIORIDAD 2: _pkg en cualquier item
+    if (!newPkg) {
+      for (var pi=0; pi<o.items.length; pi++) {
+        var it = o.items[pi];
+        if (it._pkg && RANGOS[it._pkg]) { newPkg = it._pkg; console.log('[approveOrd] ✓ P2 _pkg item:', newPkg); break; }
+        if (it._pkgName && RANGOS[it._pkgName]) { newPkg = it._pkgName; console.log('[approveOrd] ✓ P2 _pkgName item:', newPkg); break; }
       }
     }
-    // ÚLTIMO RECURSO: si el afiliado ya tiene pkg asignado y no tiene paquete pagado
-    // significa que eligió su paquete pero los items no lo llevan (pedidos creados con versión antigua)
-    if (!newPkg && esPaquete && af.pkg && RANGOS[af.pkg] && !af.paquetePagado) {
-      console.log('[approveOrd] Fallback: usando af.pkg =', af.pkg);
+    // PRIORIDAD 3: af.pkg cuando es primera compra (paquetePagado=false)
+    if (!newPkg && !af.paquetePagado && af.pkg && RANGOS[af.pkg]) {
       newPkg = af.pkg;
+      console.log('[approveOrd] ✓ P3 af.pkg primera compra:', newPkg);
     }
-    // ÚLTIMO RECURSO 2: si es upgrade (ya tiene paquete) y tiene pkg conocido diferente
-    if (!newPkg && esPaquete && af.pkg && RANGOS[af.pkg]) {
-      // Intentar detectar por total del pedido con mayor tolerancia
-      var rangosOrdPrecio = Object.keys(RANGOS).sort(function(a,b){ return Math.abs(RANGOS[a].price - o.total) - Math.abs(RANGOS[b].price - o.total); });
-      if (rangosOrdPrecio.length && Math.abs(RANGOS[rangosOrdPrecio[0]].price - o.total) < 5) {
-        newPkg = rangosOrdPrecio[0];
-        console.log('[approveOrd] Fallback por precio más cercano:', newPkg, '(diff $'+Math.abs(RANGOS[newPkg].price - o.total)+')');
+    // PRIORIDAD 4: detectar por precio total exacto
+    if (!newPkg) {
+      newPkg = detectRangoFromTotal(o.total);
+      if (newPkg) console.log('[approveOrd] ✓ P4 por total:', newPkg);
+    }
+    // PRIORIDAD 5: precio más cercano (tolerancia $5)
+    if (!newPkg) {
+      var rOrd = Object.keys(RANGOS).sort(function(a,b){ return Math.abs(RANGOS[a].price-o.total)-Math.abs(RANGOS[b].price-o.total); });
+      if (rOrd.length && Math.abs(RANGOS[rOrd[0]].price-o.total) <= 5) {
+        newPkg = rOrd[0];
+        console.log('[approveOrd] ✓ P5 precio cercano:', newPkg);
       }
     }
 
-    // Si no detectamos rango específico pero es paquete
+    // ── Detectar tipo de pedido ──
+    var hasPkgCat = o.items.some(function(it){
+      var pr = C.productos.filter(function(x){ return x.id===it.prodId; })[0];
+      return pr && pr.cat==='paquete';
+    });
+    var hasSaldoPaq = o.items.some(function(it){
+      return it._saldoPaquete || it._tipoCompra==='paquete' || it._tipoCompra==='upgrade' || it._pkg;
+    });
+    var esEntradaAfil = !af.paquetePagado && af.pkg && RANGOS[af.pkg];
+    var rangoByTotal = detectRangoFromTotal(o.total);
+    var esPaquete = hasPkgCat || hasSaldoPaq || !!esEntradaAfil || !!rangoByTotal || !!newPkg;
+
+    console.log('[approveOrd] esPaquete:', esPaquete, 'newPkg:', newPkg, 'hasSaldoPaq:', hasSaldoPaq, 'esEntradaAfil:', !!esEntradaAfil);
+
     if (esPaquete && !newPkg) {
-      // Emergencia: usar el pkg actual del afiliado si aún no tiene paquete pagado
-      if (af.pkg && RANGOS[af.pkg] && !af.paquetePagado) {
-        console.warn('[approveOrd] Usando pkg del afiliado como emergencia:', af.pkg);
-        newPkg = af.pkg;
-      } else {
-        hideLoading();
-        console.error('[approveOrd] No se pudo detectar el rango del paquete. Items:', o.items, 'Total:', o.total);
-        showAlert('❌ No se pudo detectar el rango del paquete. Ve a Productos → Sincronizar paquetes con plan e intenta de nuevo.','err');
-        return;
-      }
+      hideLoading();
+      showAlert('❌ No se pudo detectar el rango. Usa el botón 📦 en el pedido para asignarlo manualmente.','err');
+      return;
     }
 
     // ── Actualizar afiliado ──
-    // Puntos solo para compras de productos sueltos (no paquetes, no saldo de paquete)
+    // NOTA: Para pedidos de saldo de paquete, el afiliado YA está activado al enviar el pedido.
+    // Aquí solo actualizamos si aún no está activo (pedidos creados con versión antigua)
     var upd = {};
     var esCompraIndividual = !hasPkgCat && !hasSaldoPaq && !esPaquete;
     if (esCompraIndividual) {
-      // Compra de goteros sueltos sin relación a paquete — puntos sobre el total
       var ptsBase = Math.floor(o.total / PTS_RATIO);
       upd.puntos = (af.puntos||0) + ptsBase;
     }
 
     if (esPaquete) {
       var pkNew = RANGOS[newPkg] || RANGOS[af.pkg] || {};
-      var pkOld = RANGOS[af.pkg] || {};
-      // Detectar si es un paquete EXTRA (acumulable) — el carrito lo marca con _extra
       var isExtraPaq = o.items.some(function(it){ return it._extra === true; });
       var isUpgrade = !isExtraPaq && af.paquetePagado && newPkg && newPkg !== af.pkg;
+      var baseCalculo = Math.max(0, pkNew.price || o.total);
 
-      // Base de cálculo de puntos: precio real del paquete en RANGOS (no o.total)
-      var precioAnterior = 0;
-      var baseCalculo = Math.max(0, (pkNew.price || 0) - precioAnterior);
-      if (!baseCalculo && o.total > 0) baseCalculo = o.total;
-
-      upd.paquete_pagado = true;
-      upd.activo = true;
-      upd.acumulado = (af.acumulado||0) + o.total;
-      // CONVERSIÓN: si era promotor y compró un paquete, sube a Afiliado MLM
-      if (af.tipo === 'promotor') {
-        upd.tipo = 'afiliado';
-        console.log('[Conversión] ' + af.nombre + ' sube a Afiliado MLM. patrocinador actual:', af.patrocinador);
-        // SIEMPRE re-leer el patrocinador desde C.afiliados (dato fresco de Supabase)
-        var afFresh = C.afiliados.filter(function(x){ return x.id === af.id; })[0];
-        var patFinal = (afFresh && afFresh.patrocinador) || af.patrocinador || o.patrocinadorRef || '';
-        console.log('[Conversión] patFinal:', patFinal);
-        if (patFinal) {
-          upd.patrocinador = patFinal;
-        } else {
-          console.warn('[Conversión] ⚠️ Sin patrocinador para:', af.nombre, '— no quedará en ninguna red');
-        }
-      }
-      // Puntos: solo sobre la diferencia si es upgrade
-      var ptsNuevos = Math.floor(baseCalculo / PTS_RATIO);
-      upd.puntos = (af.puntos||0) + ptsNuevos;
-
-      if (isExtraPaq) {
-        // PAQUETE EXTRA — se agrega a paquetes_acum, NO cambia el pkg principal
+      // Solo actualizar si el afiliado NO está activo aún (pedidos de versión antigua)
+      // Para pedidos nuevos, ya fue activado en submitOrder
+      if (!af.paquetePagado) {
+        upd.paquete_pagado = true;
+        upd.activo = true;
+        upd.pkg = newPkg || af.pkg;
+        upd.puntos = (af.puntos||0) + Math.floor(baseCalculo / PTS_RATIO);
+        upd.acumulado = (af.acumulado||0) + o.total;
+        upd.bono_ir_recibido = true;
+        if (af.tipo === 'promotor') upd.tipo = 'afiliado';
+      } else if (isUpgrade) {
+        // Upgrade de rango
+        upd.pkg = newPkg;
+        upd.pkg_anterior = af.pkg;
+        upd.fecha_upgrade = today;
+        upd.puntos = (af.puntos||0) + Math.floor(baseCalculo / PTS_RATIO);
+        upd.acumulado = (af.acumulado||0) + o.total;
+      } else if (isExtraPaq) {
         var extraPkg = o.items.filter(function(it){return it._extra;})[0]._pkgName || newPkg;
         var nuevosAcum = (af.paquetesAcum||[]).slice();
-        nuevosAcum.push({
-          pkg: extraPkg,
-          fecha: today,
-          recompras: [thisMonth()] // ya cubierto este mes con la compra inicial
-        });
+        nuevosAcum.push({ pkg: extraPkg, fecha: today, recompras: [thisMonth()] });
         upd.paquetes_acum = nuevosAcum;
-        // Bono IR ELIMINADO también para paquetes adicionales
-      } else {
-        // PRIMER PAQUETE o UPGRADE
-        upd.pkg = newPkg || af.pkg;
-        if (isUpgrade) {
-          upd.pkg_anterior = af.pkg;
-          upd.fecha_upgrade = today;
-        }
-        // Bono IR ELIMINADO — el afiliado gana solo por comisiones de su red
-        // Marcar igual para compatibilidad con cuentas viejas
-        upd.bono_ir_recibido = true;
       }
     }
-    updates.push(sbPatch('afiliados', upd, '?id=eq.'+af.id));
+    if (Object.keys(upd).length > 0) updates.push(sbPatch('afiliados', upd, '?id=eq.'+af.id));
 
     // ── Pagar comisiones en la red ──
     if (esPaquete) {
@@ -3340,7 +3327,25 @@ function _doApproveOrd(id) {
     .catch(function(e){ hideLoading(); showAlert('Error al aprobar: ' + (e.message||e), 'err'); console.error('approveOrd error:', e); });
 }
 
-function rejectOrd(id) {
+// Editar rango de un pedido manualmente (para pedidos sin pkg_pedido)
+function editRangoPedido(ordId) {
+  var o = C.pedidos.filter(function(x){ return x.id===ordId; })[0];
+  if (!o) return;
+  var opts = Object.keys(RANGOS).map(function(r){ return '<option value="'+r+'">'+(RANGOS[r].ico||'')+" "+r+' ($'+RANGOS[r].price+')</option>'; }).join('');
+  var rngActual = o.pkgPedido || detectRangoFromTotal(o.total) || detectRangoFromItems(o.items) || '';
+  var sel = prompt('Rango del pedido '+ordId+':\nOpciones: '+Object.keys(RANGOS).join(', ')+'\n\nActual detectado: "'+rngActual+'"\n\nEscribe el rango correcto:', rngActual||'');
+  if (!sel || !RANGOS[sel]) { showAlert('Rango no válido: '+sel,'err'); return; }
+  showLoading('Guardando...');
+  // Actualizar items con _pkg y pkg_pedido
+  var itemsAct = o.items.map(function(it,i){ var n=Object.assign({},it); if(i===0){n._pkg=sel;n._saldoPaquete=true;} return n; });
+  sbPatch('pedidos',{pkg_pedido:sel,items:itemsAct},'?id=eq.'+ordId)
+    .then(function(){ return loadAdmin(); })
+    .then(function(){
+      renderAdmPedidos();
+      showAlert('✅ Rango del pedido actualizado a '+sel+'. Ahora apruébalo.','suc');
+    })
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+}
   showLoading('Rechazando...'); sbPatch('pedidos',{estado:'Rechazado'},'?id=eq.'+id).then(function(){return loadAdmin();}).then(function(){renderAdmPedidos();showAlert('Pedido rechazado.','err');}).catch(function(e){hideLoading();showAlert('Error: '+e.message,'err');});
 }
 
@@ -4499,19 +4504,17 @@ function spActualizar() {
 
 function confirmarSaldoPaquete() {
   if (!_spSeleccionados.length) return;
-  // LIMPIAR el carrito primero — el pedido de paquete/recompra va solo, sin mezclar
+  // LIMPIAR el carrito — el pedido de paquete/recompra va solo
   cart = [];
-  var esFirst = true;
   _spSeleccionados.forEach(function(x) {
     cart.push({
       id: x.prodId, code: x.prod.code, name: x.prod.name,
       price: x.prod.price, qty: x.qty, ico: x.prod.ico, fotos: x.prod.fotos||[],
-      _tipoCompra: _spTipo, _pkgName: _spPkgName,
-      _saldoPaquete: true,
-      // Guardar pkg en TODOS los items para mejor detección al aprobar
-      _pkg: _spPkgName
+      _tipoCompra: _spTipo,
+      _pkgName: _spPkgName,
+      _pkg: _spPkgName,        // en TODOS los items
+      _saldoPaquete: true
     });
-    esFirst = false;
   });
   closeM('m-saldo-paquete');
   updateCartUI();
@@ -4655,11 +4658,56 @@ function submitOrder(){
   showLoading('Enviando pedido...');
   var itemsConPat = cart.map(function(c){var i={prodId:c.id,name:c.name,qty:c.qty,price:c.price};if(c._extra)i._extra=true;if(c._pkgName)i._pkgName=c._pkgName;if(c._tipoCompra)i._tipoCompra=c._tipoCompra;if(c._pkg)i._pkg=c._pkg;if(c._saldoPaquete)i._saldoPaquete=true;return i;});
   if(itemsConPat.length>0 && af.patrocinador) itemsConPat[0]._patrocinador=af.patrocinador;
-  sbPost('pedidos',{id:ordId,afil_id:af.id,afil_nombre:af.nombre+' '+af.apellido,items:itemsConPat,total:total,metodo:curPay,txid:txid,estado:'Pendiente',fecha:today})
-    .then(function(){return sbPost('actividad',{tipo:'pedido',txt:'Nuevo pedido '+ordId+' de '+af.nombre+' '+af.apellido+(pkgDePedido?' [Paquete '+pkgDePedido+']':''),fecha:today});})
-    .then(function(){return loadAfil(af.id);})
-    .then(function(){cart=[];updateCartUI();buildTabs();showAlert('Pedido '+ordId+' enviado. El admin lo aprobará en 1–24 horas.','suc');setTimeout(function(){goSec('sec-mis-ords');},1200);})
-    .catch(function(e){hideLoading();showAlert('Error: '+e.message,'err');});
+  // Detectar el rango del paquete AHORA (cuando tenemos contexto) y guardarlo en el pedido
+  var pkgDelPedido = pkgDePedido || (esPedidoSaldo ? af.pkg : null) ||
+    detectRangoFromItems(cart.map(function(c){ return {prodId:c.id,_pkg:c._pkg,_pkgName:c._pkgName,name:c.name,price:c.price}; })) ||
+    detectRangoFromTotal(total);
+  // Asegurar que el primer item también lleva _pkg (doble respaldo)
+  if (pkgDelPedido && itemsConPat.length > 0 && !itemsConPat[0]._pkg) {
+    itemsConPat[0]._pkg = pkgDelPedido;
+  }
+  if (pkgDelPedido && itemsConPat.length > 0) {
+    itemsConPat[0]._saldoPaquete = true;
+  }
+  console.log('[submitOrder] pkgDelPedido:', pkgDelPedido, 'total:', total, 'items:', itemsConPat.length);
+  sbPost('pedidos',{id:ordId,afil_id:af.id,afil_nombre:af.nombre+' '+af.apellido,items:itemsConPat,total:total,metodo:curPay,txid:txid,estado:'Pendiente',fecha:today,pkg_pedido:pkgDelPedido||null})
+    .then(function(){
+      return sbPost('actividad',{tipo:'pedido',txt:'Nuevo pedido '+ordId+' de '+af.nombre+' '+af.apellido+(pkgDelPedido?' [Paquete '+pkgDelPedido+']':''),fecha:today});
+    })
+    .then(function(){
+      // ── ACTIVACIÓN INMEDIATA si es pedido de paquete ──
+      // El afiliado se activa al confirmar su selección de productos.
+      // El admin solo verifica que el pago llegó (USDT/BTC).
+      if (esPedidoSaldo && pkgDelPedido && RANGOS[pkgDelPedido]) {
+        var pk = RANGOS[pkgDelPedido];
+        var ptsNuevos = Math.floor(pk.price / (typeof PTS_RATIO !== 'undefined' ? PTS_RATIO : 10));
+        var patchAfil = {
+          pkg: pkgDelPedido,
+          paquete_pagado: true,
+          activo: true,
+          puntos: (af.puntos||0) + ptsNuevos,
+          acumulado: (af.acumulado||0) + total
+        };
+        // Si era promotor → convertir a Afiliado MLM
+        if (af.tipo === 'promotor') {
+          patchAfil.tipo = 'afiliado';
+        }
+        return sbPatch('afiliados', patchAfil, '?id=eq.'+af.id);
+      }
+      return Promise.resolve();
+    })
+    .then(function(){ return loadAfil(af.id); })
+    .then(function(){
+      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0] || cUser;
+      cart=[]; updateCartUI(); buildTabs();
+      if (esPedidoSaldo && pkgDelPedido) {
+        showAlert('🎉 ¡Bienvenido a PrimeUnity! Ya eres Afiliado MLM '+pkgDelPedido+'. Tu pedido '+ordId+' está pendiente de verificación de pago.','suc');
+      } else {
+        showAlert('Pedido '+ordId+' enviado. El admin lo verificará en 1–24 horas.','suc');
+      }
+      setTimeout(function(){ goSec('sec-panel'); }, 1500);
+    })
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
 }
 
 // ═══════════════════════════════
