@@ -3160,23 +3160,23 @@ function _doApproveOrd(id) {
         if (it._pkgName && RANGOS[it._pkgName]) { newPkg = it._pkgName; console.log('[approveOrd] ✓ P2 _pkgName item:', newPkg); break; }
       }
     }
-    // PRIORIDAD 3: af.pkg cuando es primera compra (paquetePagado=false)
-    if (!newPkg && !af.paquetePagado && af.pkg && RANGOS[af.pkg]) {
-      newPkg = af.pkg;
-      console.log('[approveOrd] ✓ P3 af.pkg primera compra:', newPkg);
-    }
-    // PRIORIDAD 4: detectar por precio total exacto
+    // PRIORIDAD 3: detectar por precio total exacto
     if (!newPkg) {
       newPkg = detectRangoFromTotal(o.total);
-      if (newPkg) console.log('[approveOrd] ✓ P4 por total:', newPkg);
+      if (newPkg) console.log('[approveOrd] ✓ P3 por total:', newPkg);
     }
-    // PRIORIDAD 5: precio más cercano (tolerancia $5)
+    // PRIORIDAD 4: precio más cercano (tolerancia $5)
     if (!newPkg) {
       var rOrd = Object.keys(RANGOS).sort(function(a,b){ return Math.abs(RANGOS[a].price-o.total)-Math.abs(RANGOS[b].price-o.total); });
       if (rOrd.length && Math.abs(RANGOS[rOrd[0]].price-o.total) <= 5) {
         newPkg = rOrd[0];
-        console.log('[approveOrd] ✓ P5 precio cercano:', newPkg);
+        console.log('[approveOrd] ✓ P4 precio cercano:', newPkg);
       }
+    }
+    // PRIORIDAD 5: af.pkg cuando es primera compra (paquetePagado=false)
+    if (!newPkg && !af.paquetePagado && af.pkg && RANGOS[af.pkg]) {
+      newPkg = af.pkg;
+      console.log('[approveOrd] ✓ P5 af.pkg primera compra:', newPkg);
     }
 
     // ── Detectar tipo de pedido ──
