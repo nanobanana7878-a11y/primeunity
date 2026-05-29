@@ -3116,19 +3116,21 @@ function _doApproveOrd(id) {
   }
 
   // ── 4. PAQUETE (entrada, upgrade, adicional) ──
-  // Detectar el rango — en orden de confiabilidad
+  // Detectar el rango — SOLO desde el pedido, nunca desde af.pkg
   var newPkg = null;
-  if (o.pkgPedido && RANGOS[o.pkgPedido])                          newPkg = o.pkgPedido;        // P1: campo directo
-  if (!newPkg) { for(var pi=0;pi<o.items.length;pi++) {
-    if (o.items[pi]._pkg && RANGOS[o.items[pi]._pkg])             { newPkg=o.items[pi]._pkg; break; }   // P2: _pkg en item
-    if (o.items[pi]._pkgName && RANGOS[o.items[pi]._pkgName])     { newPkg=o.items[pi]._pkgName; break; }
-  }}
-  if (!newPkg) newPkg = detectRangoFromTotal(o.total);              // P3: precio exacto
-  if (!newPkg) {                                                     // P4: precio más cercano
+  if (o.pkgPedido && RANGOS[o.pkgPedido]) newPkg = o.pkgPedido;  // P1: campo directo ✓
+  if (!newPkg) {
+    for (var pi=0; pi<o.items.length; pi++) {
+      if (o.items[pi]._pkg && RANGOS[o.items[pi]._pkg])         { newPkg=o.items[pi]._pkg; break; }
+      if (o.items[pi]._pkgName && RANGOS[o.items[pi]._pkgName]) { newPkg=o.items[pi]._pkgName; break; }
+    }
+  }                                                               // P2: _pkg en items
+  if (!newPkg) newPkg = detectRangoFromTotal(o.total);           // P3: precio exacto
+  if (!newPkg) {                                                  // P4: precio más cercano $5
     var rOrd = Object.keys(RANGOS).sort(function(a,b){ return Math.abs(RANGOS[a].price-o.total)-Math.abs(RANGOS[b].price-o.total); });
     if (rOrd.length && Math.abs(RANGOS[rOrd[0]].price-o.total)<=5) newPkg = rOrd[0];
   }
-  if (!newPkg && !af.paquetePagado && af.pkg && RANGOS[af.pkg])    newPkg = af.pkg;              // P5: af.pkg primera compra
+  console.log('[approveOrd] newPkg:', newPkg, 'pkgPedido:', o.pkgPedido, 'total:', o.total);
 
   // Si hay items con _saldoPaquete o _tipoCompra=paquete/upgrade, es un pedido de paquete
   var esPedidoPaquete = newPkg || o.items.some(function(it){
@@ -3916,27 +3918,12 @@ function buildPkgChooser(container) {
 }
 
 function selPaquete(pkg) {
-  var af = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0] || cUser;
   var pk = RANGOS[pkg] || {};
   var saldoPkg = pk.price || 0;
   if (!saldoPkg) { showAlert('Paquete no encontrado.','err'); return; }
-  showLoading('Preparando paquete...');
-  // Guardar el paquete seleccionado en Supabase
-  sbPatch('afiliados', {pkg: pkg}, '?id=eq.'+af.id)
-    .then(function(){ return loadAfil(af.id); })
-    .then(function(){
-      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0] || cUser;
-      // Asegurar que los productos estén cargados
-      return C.productos && C.productos.length > 0
-        ? Promise.resolve()
-        : sbGet('productos','?order=price.asc').then(function(r){ C.productos = r.map(nProd); });
-    })
-    .then(function(){
-      hideLoading();
-      // Abrir modal de saldo para elegir productos
-      abrirSaldoPaquete(saldoPkg, 'upgrade', pkg);
-    })
-    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+  // Abrir modal de saldo directamente — NO guardar af.pkg aquí
+  // El rango se guarda en pkg_pedido al confirmar el pedido
+  abrirSaldoPaquete(saldoPkg, 'paquete', pkg);
 }
 
 // ═══════════════════════════════
@@ -4155,21 +4142,8 @@ function addCart(id){
       }
       var pkProd = RANGOS[rngProd] || {};
       var saldo = pkProd.price || p.price;
-      // Guardar el rango elegido en Supabase primero, luego abrir el modal de saldo
-      showLoading('Preparando paquete...');
-      sbPatch('afiliados', {pkg: rngProd}, '?id=eq.'+af.id)
-        .then(function(){ return loadAfil(af.id); })
-        .then(function(){
-          cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0] || cUser;
-          return C.productos && C.productos.length > 0
-            ? Promise.resolve()
-            : sbGet('productos','?order=price.asc').then(function(r){ C.productos = r.map(nProd); });
-        })
-        .then(function(){
-          hideLoading();
-          abrirSaldoPaquete(saldo, 'paquete', rngProd);
-        })
-        .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+      // Abrir modal directamente — NO guardar en Supabase todavía
+      abrirSaldoPaquete(saldo, 'paquete', rngProd);
       return;
     }
   }
@@ -4281,24 +4255,11 @@ function abrirPopupCompraPaquete(prod) {
 
 // ── Helper: iniciar compra de paquete por primera vez (desde popup) ──
 function _iniciarCompraPaquete(prodId, rngProd) {
-  var af = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0] || cUser;
   var pkProd = RANGOS[rngProd] || {};
   var saldo = pkProd.price || 0;
   if (!saldo) { showAlert('Paquete no encontrado.','err'); return; }
-  showLoading('Preparando paquete...');
-  sbPatch('afiliados', {pkg: rngProd}, '?id=eq.'+af.id)
-    .then(function(){ return loadAfil(af.id); })
-    .then(function(){
-      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0] || cUser;
-      return C.productos && C.productos.length > 0
-        ? Promise.resolve()
-        : sbGet('productos','?order=price.asc').then(function(r){ C.productos = r.map(nProd); });
-    })
-    .then(function(){
-      hideLoading();
-      abrirSaldoPaquete(saldo, 'paquete', rngProd);
-    })
-    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+  // Abrir modal directamente — sin guardar en Supabase
+  abrirSaldoPaquete(saldo, 'paquete', rngProd);
 }
 
 // ═══════════════════════════════
@@ -4551,20 +4512,16 @@ function submitOrder(){
   showLoading('Enviando pedido...');
   var itemsConPat = cart.map(function(c){var i={prodId:c.id,name:c.name,qty:c.qty,price:c.price};if(c._extra)i._extra=true;if(c._pkgName)i._pkgName=c._pkgName;if(c._tipoCompra)i._tipoCompra=c._tipoCompra;if(c._pkg)i._pkg=c._pkg;if(c._saldoPaquete)i._saldoPaquete=true;return i;});
   if(itemsConPat.length>0 && af.patrocinador) itemsConPat[0]._patrocinador=af.patrocinador;
-  // Detectar el rango del paquete — NUNCA usar af.pkg como fuente (puede ser de otro afiliado en memoria)
-  // Usar SOLO: _pkg del carrito → precio total exacto
-  var pkgDelPedido = pkgDePedido ||
-    (cart[0] && cart[0]._pkg && RANGOS[cart[0]._pkg] ? cart[0]._pkg : null) ||
-    (cart[0] && cart[0]._pkgName && RANGOS[cart[0]._pkgName] ? cart[0]._pkgName : null) ||
-    detectRangoFromTotal(total);
-  // Asegurar que el primer item también lleva _pkg (doble respaldo)
-  if (pkgDelPedido && itemsConPat.length > 0 && !itemsConPat[0]._pkg) {
-    itemsConPat[0]._pkg = pkgDelPedido;
+  // El rango viene ÚNICAMENTE del carrito (_pkg guardado en confirmarSaldoPaquete)
+  // NUNCA usar af.pkg — puede ser de otro afiliado en memoria
+  var pkgDelPedido = null;
+  for (var ci=0; ci<cart.length; ci++) {
+    if (cart[ci]._pkg && RANGOS[cart[ci]._pkg]) { pkgDelPedido = cart[ci]._pkg; break; }
+    if (cart[ci]._pkgName && RANGOS[cart[ci]._pkgName]) { pkgDelPedido = cart[ci]._pkgName; break; }
   }
-  if (pkgDelPedido && itemsConPat.length > 0) {
-    itemsConPat[0]._saldoPaquete = true;
-  }
-  console.log('[submitOrder] pkgDelPedido:', pkgDelPedido, 'total:', total, 'cart[0]._pkg:', cart[0]&&cart[0]._pkg, 'cart[0]._pkgName:', cart[0]&&cart[0]._pkgName);
+  // Fallback: detectar por precio total exacto
+  if (!pkgDelPedido && esPedidoSaldo) pkgDelPedido = detectRangoFromTotal(total);
+  console.log('[submitOrder] pkgDelPedido:', pkgDelPedido, 'total:', total, 'cart._pkg:', cart[0]&&cart[0]._pkg);
   sbPost('pedidos',{id:ordId,afil_id:af.id,afil_nombre:af.nombre+' '+af.apellido,items:itemsConPat,total:total,metodo:curPay,txid:txid,estado:'Pendiente',fecha:today,pkg_pedido:pkgDelPedido||null})
     .then(function(){
       return sbPost('actividad',{tipo:'pedido',txt:'Nuevo pedido '+ordId+' de '+af.nombre+' '+af.apellido+(pkgDelPedido?' [Paquete '+pkgDelPedido+']':''),fecha:today});
