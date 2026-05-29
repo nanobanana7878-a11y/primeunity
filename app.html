@@ -5745,7 +5745,17 @@ var VENDEDOR_REF = null;
         // Ir directo al formulario de registro con el código ya puesto
         var scLogin = el('screen-login');
         if (scLogin) scLogin.style.display = 'flex';
-        setTimeout(function(){ setMode('reg'); }, 100);
+        setTimeout(function(){
+          setMode('reg');
+          // Doble aseguramiento: llenar el campo después de que el DOM esté listo
+          setTimeout(function(){
+            var campoRef = el('rref');
+            if (campoRef && codigo) {
+              campoRef.value = codigo;
+              buscarPatrocinador(codigo);
+            }
+          }, 300);
+        }, 100);
       } else {
         // Mostrar la pantalla de pedido del cliente
         mostrarPantallaCliente(codigo);
