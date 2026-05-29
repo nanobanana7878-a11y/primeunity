@@ -4561,21 +4561,56 @@ function renderRed(){
   var n1=getChildren(af.refCode);
   var net=allNet(af.refCode,1,maxN);
   var activos=net.filter(function(a){return a.activo;}).length;
-  var totalCom=0;
-  function sumCom(rc,nivel){if(nivel>maxN)return;getChildren(rc).forEach(function(a){totalCom+=comAfil(a,nivel);sumCom(a.refCode,nivel+1);});}
+
+  // Comisiones REALES ganadas (de la tabla pagos)
+  var totalComReal = C.pagos.filter(function(p){return p.afilId===af.id;}).reduce(function(s,p){return s+p.monto;},0);
+  // Proyección mensual (recompras)
+  var totalComMes=0;
+  function sumCom(rc,nivel){if(nivel>maxN)return;getChildren(rc).forEach(function(a){totalComMes+=comAfil(a,nivel);sumCom(a.refCode,nivel+1);});}
   sumCom(af.refCode,1);
+
+  // Comisiones reales por afiliado (para mostrar en el árbol)
+  function comRealAfil(afilId){
+    return C.pagos.filter(function(p){return p.afilId===af.id && p.concepto && p.concepto.indexOf(afilId)>-1;}).reduce(function(s,p){return s+p.monto;},0);
+  }
+  // Comisión ganada por nivel (entrada + recompras del afiliado)
+  function comGanadaPor(afilNombre){
+    return C.pagos.filter(function(p){
+      return p.afilId===af.id && p.concepto && p.concepto.indexOf(afilNombre)>-1;
+    }).reduce(function(s,p){return s+p.monto;},0);
+  }
+
   var myRc=C.recompras.filter(function(r){return r.afilId===af.id&&r.mes===thisMonth();})[0];
   var pts=(af.puntos||0)-(af.puntosCanjeados||0);
-  el('red-kpis').innerHTML='<div class="kpi"><div class="klbl">N1 directos</div><div class="kval blue">'+n1.length+'</div></div><div class="kpi"><div class="klbl">Total red</div><div class="kval blue">'+net.length+'</div></div><div class="kpi"><div class="klbl">Activos</div><div class="kval green">'+activos+'</div></div><div class="kpi"><div class="klbl">Comisión/mes</div><div class="kval green">'+fmt(totalCom)+'</div></div><div class="kpi"><div class="klbl">⭐ Puntos</div><div class="kval amber">'+pts+'</div></div>';
+  el('red-kpis').innerHTML=
+    '<div class="kpi"><div class="klbl">N1 directos</div><div class="kval blue">'+n1.length+'</div></div>'+
+    '<div class="kpi"><div class="klbl">Total red</div><div class="kval blue">'+net.length+'</div></div>'+
+    '<div class="kpi"><div class="klbl">Activos</div><div class="kval green">'+activos+'</div></div>'+
+    '<div class="kpi"><div class="klbl">Ganado total</div><div class="kval green">'+fmt(totalComReal)+'</div></div>'+
+    '<div class="kpi"><div class="klbl">Proyección/mes</div><div class="kval amber">'+fmt(totalComMes)+'</div></div>'+
+    '<div class="kpi"><div class="klbl">⭐ Puntos</div><div class="kval amber">'+pts+'</div></div>';
   el('red-lvl-lbl').textContent='Rango '+af.pkg+' · hasta N'+maxN;
+
   function nodeHTML(a,nivel){
     var ch=nivel<maxN?getChildren(a.refCode):[];
     var rc2=C.recompras.filter(function(r){return r.afilId===a.id&&r.mes===thisMonth();})[0];
     var active=a.activo&&rc2&&rc2.pagado;
     var pkA=RANGOS[a.pkg]||{};
     var init=(a.nombre[0]+(a.apellido?a.apellido[0]:'')).toUpperCase();
+    // Comisión real ganada por este afiliado
+    var comEntrada = C.pagos.filter(function(p){
+      return p.afilId===af.id && p.concepto && p.concepto.indexOf(a.nombre)>-1;
+    }).reduce(function(s,p){return s+p.monto;},0);
+    var comMes = comAfil(a, nivel);
     var childHtml=ch.length?'<div class="tn-ch">'+ch.map(function(c){return nodeHTML(c,nivel+1);}).join('')+'</div>':'';
-    return '<div class="tn-sub"><div><div class="tn-card '+(active?'act':'ina')+'"><div class="tn-av" style="background:'+(pkA.color||'#ccc')+'">'+init+'</div><div class="tn-nm">'+a.nombre+'</div><div class="tn-rg">'+(pkA.ico||'')+' '+a.pkg+'</div><div class="tn-cm">'+(a.activo?'+'+fmt(comAfil(a,nivel)):'$0')+'</div><div class="tn-st '+(active?'ok':'no')+'">'+(a.activo?(rc2&&rc2.pagado?'✓ Activo':'Sin recompra'):'Inactivo')+'</div></div></div>'+childHtml+'</div>';
+    return '<div class="tn-sub"><div><div class="tn-card '+(active?'act':'ina')+'">'+
+      '<div class="tn-av" style="background:'+(pkA.color||'#ccc')+'">'+init+'</div>'+
+      '<div class="tn-nm">'+a.nombre+'</div>'+
+      '<div class="tn-rg">'+(pkA.ico||'')+' '+a.pkg+'</div>'+
+      '<div class="tn-cm" style="color:var(--green);font-size:.9rem;font-weight:800">'+(comEntrada>0?'+'+fmt(comEntrada)+' ganado':'$0')+'</div>'+
+      '<div style="font-size:.65rem;color:var(--g400)">'+fmt(comMes)+'/mes proyectado</div>'+
+      '<div class="tn-st '+(active?'ok':'no')+'">'+(a.activo?(rc2&&rc2.pagado?'✓ Activo':'Sin recompra'):'Inactivo')+'</div>'+
+      '</div></div>'+childHtml+'</div>';
   }
   var myInit=(af.nombre[0]+(af.apellido?af.apellido[0]:'')).toUpperCase();
   var rootCard='<div><div class="tn-card yo"><div class="tn-av" style="background:'+(pk.color||'var(--b6)')+'">'+myInit+'</div><div class="tn-nm">'+af.nombre+'</div><div class="tn-rg">'+(pk.ico||'')+' '+af.pkg+'</div><div class="tn-cm" style="color:var(--b6)">TÚ</div><div class="tn-st '+(myRc&&myRc.pagado?'ok':'no')+'">'+(myRc&&myRc.pagado?'✓ OK':'Sin recompra')+'</div></div></div>';
