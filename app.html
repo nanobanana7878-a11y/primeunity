@@ -2448,12 +2448,13 @@ function doReg() {
   var n=el('rn').value.trim(), a=el('ra').value.trim();
   var e=el('re').value.trim().toLowerCase(), p=el('rp').value;
   var t=el('rt').value.trim();
-  // Obtener ref con triple fallback: campo visible → VENDEDOR_REF en memoria → sessionStorage
-  var ref = (el('rref') ? el('rref').value.trim().toUpperCase() : '') 
-         || (VENDEDOR_REF ? VENDEDOR_REF.trim().toUpperCase() : '')
+  // Obtener ref — VENDEDOR_REF es la fuente más confiable (viene de la URL al cargar)
+  var ref = VENDEDOR_REF
+         || (el('rref') ? el('rref').value.trim().toUpperCase() : '')
          || (function(){ try { var s=sessionStorage.getItem('oxivision_ref'); return s?s.trim().toUpperCase():''; } catch(e){ return ''; } })()
          || (function(){ try { var s=localStorage.getItem('oxivision_ref_reg'); return s?s.trim().toUpperCase():''; } catch(e){ return ''; } })();
-  console.log('[doReg] ref final:', ref, '| campo:', el('rref')?el('rref').value:'', '| VENDEDOR_REF:', VENDEDOR_REF);
+  if (!ref && el('rref')) ref = el('rref').value.trim().toUpperCase();
+  console.log('[doReg] ref final:', ref, '| VENDEDOR_REF:', VENDEDOR_REF, '| campo rref:', el('rref')?el('rref').value:'');
   el('rr-err').style.display='none';
   if (!n||!a||!e||!p) { showErr('rr-err','❌ Completa los campos obligatorios.'); return; }
   if (p.length<6) { showErr('rr-err','❌ Contraseña mínimo 6 caracteres.'); return; }
