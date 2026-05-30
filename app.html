@@ -891,27 +891,24 @@ document.querySelectorAll('.reveal').forEach(function(el){ obsLanding.observe(el
 
   <div id="cli-vendedor-info" style="background:var(--b0);border:1px solid var(--b1);border-radius:var(--r);padding:.7rem 1rem;margin-bottom:1rem;font-size:.82rem;color:var(--b6);text-align:center"></div>
 
-  <div style="background:var(--g100);border-radius:var(--r);padding:1rem;margin-bottom:1rem;text-align:center">
-    <div style="font-size:.8rem;color:var(--g500)">Precio por producto</div>
-    <div style="font-size:1.8rem;font-weight:800;color:var(--g800)">$15</div>
-    <div style="font-size:.72rem;color:var(--g400)">El envío se calcula y se paga aparte</div>
+  <!-- Selector dinámico de productos -->
+  <div id="cli-productos-wrap" style="margin-bottom:.75rem">
+    <div style="text-align:center;padding:1.5rem;color:var(--g400);font-size:.85rem">⏳ Cargando productos...</div>
   </div>
 
-  <div class="fg">
-    <label>¿Cuántos productos quieres?</label>
-    <input type="number" id="cli-cant" value="1" min="1" max="50">
-  </div>
-  <div class="fg"><label>Tu nombre completo *</label><input type="text" id="cli-nombre" placeholder="Nombre y apellido"></div>
-  <div class="fg"><label>Tu teléfono / WhatsApp *</label><input type="tel" id="cli-tel" placeholder="+58 412 000 0000"></div>
-  <div class="fg"><label>Dirección de entrega *</label><textarea id="cli-dir" rows="2" placeholder="Ciudad, sector, calle, referencia"></textarea></div>
+  <div id="cli-datos">
+    <div class="fg"><label>Tu nombre completo *</label><input type="text" id="cli-nombre" placeholder="Nombre y apellido"></div>
+    <div class="fg"><label>Tu teléfono / WhatsApp *</label><input type="tel" id="cli-tel" placeholder="+58 412 000 0000"></div>
+    <div class="fg"><label>Dirección de entrega *</label><textarea id="cli-dir" rows="2" placeholder="Ciudad, sector, calle, referencia"></textarea></div>
 
-  <div style="background:var(--g100);border-radius:var(--r);padding:.8rem 1rem;margin:.6rem 0;font-size:.88rem">
-    <div style="display:flex;justify-content:space-between"><span>Total del pedido:</span><strong id="cli-total">$15</strong></div>
-  </div>
+    <div style="background:var(--g100);border-radius:var(--r);padding:.8rem 1rem;margin:.6rem 0;font-size:.88rem">
+      <div style="display:flex;justify-content:space-between"><span>Total del pedido:</span><strong id="cli-total">$0</strong></div>
+    </div>
 
-  <div id="cli-err" class="lerr"></div>
-  <button class="btn-login" onclick="enviarPedidoCliente()">Hacer mi pedido →</button>
-  <div class="lhint" style="margin-top:.8rem">Te contactaremos por WhatsApp para coordinar el pago y el envío.</div>
+    <div id="cli-err" class="lerr"></div>
+    <button class="btn-login" onclick="enviarPedidoCliente()">Hacer mi pedido →</button>
+    <div class="lhint" style="margin-top:.8rem">Te contactaremos por WhatsApp para coordinar el pago y el envío.</div>
+  </div>
 
   <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--g200);text-align:center">
     <p style="font-size:.85rem;color:var(--g600);font-weight:600;margin-bottom:.5rem">💼 ¿Quieres GANAR dinero vendi​endo PrimeUnity?</p>
@@ -5994,6 +5991,9 @@ var VENDEDOR_REF = null;
 })();
 
 // Muestra la pantalla de pedido del cliente y oculta el login
+// Carrito público: { prodId, name, price, qty }
+var _cliCarrito = [];
+
 function mostrarPantallaCliente(codigoVendedor) {
   var scLogin = el('screen-login');
   var scCli = el('screen-cliente');
@@ -6011,11 +6011,59 @@ function mostrarPantallaCliente(codigoVendedor) {
     }
   }).catch(function(){});
 
-  // Actualizar el total cuando cambie la cantidad
-  var campoCant = el('cli-cant');
-  if (campoCant) {
-    campoCant.addEventListener('input', actualizarTotalCliente);
-  }
+  // Cargar productos disponibles para la venta pública
+  cargarProductosCliente();
+}
+
+function cargarProductosCliente() {
+  var wrap = el('cli-productos-wrap');
+  sbGet('productos', '?visible=eq.true&order=price.asc').then(function(rows) {
+    var prods = (rows||[]).filter(function(p){ return p.stock > 0; });
+    if (!prods.length) {
+      wrap.innerHTML = '<div style="background:var(--al);border-radius:var(--r);padding:1rem;font-size:.85rem;color:#92400e;text-align:center">⚠️ No hay productos disponibles en este momento.</div>';
+      return;
+    }
+    var html = '<div style="font-size:.78rem;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.6rem">Elige tus productos</div>';
+    prods.forEach(function(p) {
+      html += '<div style="background:#fff;border:1.5px solid var(--g200);border-radius:var(--r);padding:.875rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.875rem">'
+        + '<div style="font-size:1.6rem">'+(p.ico||'📦')+'</div>'
+        + '<div style="flex:1">'
+          + '<div style="font-weight:700;font-size:.875rem">'+p.name+'</div>'
+          + '<div style="font-size:.75rem;color:var(--g500);margin-top:.1rem">'+(p.descripcion||'')+'</div>'
+          + '<div style="font-weight:800;color:var(--b6);margin-top:.2rem">$'+p.price+'</div>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:.4rem">'
+          + '<button onclick="cliAjustarQty(''+p.id+'', -1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--g200);background:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>'
+          + '<span id="cli-qty-'+p.id+'" style="font-weight:700;min-width:20px;text-align:center">0</span>'
+          + '<button onclick="cliAjustarQty(''+p.id+'', 1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--b5);background:var(--b1);color:var(--b6);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>'
+        + '</div>'
+        + '</div>';
+      // Guardar datos del producto en el carrito interno
+      _cliCarrito.push({ prodId: p.id, name: p.name, price: p.price, qty: 0, ico: p.ico||'📦' });
+    });
+    wrap.innerHTML = html;
+    actualizarTotalCliente();
+  }).catch(function() {
+    // Fallback si no carga Supabase: mostrar producto genérico
+    wrap.innerHTML = '<div style="background:#fff;border:1.5px solid var(--g200);border-radius:var(--r);padding:.875rem;margin-bottom:.6rem">'
+      + '<div style="font-weight:700;margin-bottom:.5rem">💧 Gotero PrimeUnity</div>'
+      + '<div style="font-size:.75rem;color:var(--g500);margin-bottom:.5rem">Producto estrella · $15 c/u</div>'
+      + '<div class="fg" style="margin-bottom:0"><label>Cantidad</label><input type="number" id="cli-cant-fallback" value="1" min="1" max="50" oninput="actualizarTotalCliente()"></div>'
+      + '</div>';
+    _cliCarrito = [{ prodId:'GOTERO', name:'Gotero PrimeUnity', price:15, qty:1 }];
+    actualizarTotalCliente();
+  });
+}
+
+function cliAjustarQty(prodId, delta) {
+  var item = _cliCarrito.filter(function(x){ return x.prodId===prodId; })[0];
+  if (!item) return;
+  item.qty = Math.max(0, item.qty + delta);
+  var el2 = el('cli-qty-'+prodId);
+  if (el2) el2.textContent = item.qty;
+  // Resaltar si qty > 0
+  var card = el2 ? el2.closest('div[style*="border:1.5px"]') : null;
+  actualizarTotalCliente();
 }
 
 // El visitante decide unirse como promotor (desde la página del cliente)
@@ -6083,22 +6131,25 @@ function irARegistroPromotor() {
 }
 
 function actualizarTotalCliente() {
-  var cant = parseInt(el('cli-cant').value) || 1;
-  if (cant < 1) cant = 1;
-  var total = cant * 15;
+  // Modo dinámico con carrito
+  var total = _cliCarrito.reduce(function(s,x){ return s + (x.qty * x.price); }, 0);
+  // Fallback para modo sin productos
+  var fallback = el('cli-cant-fallback');
+  if (fallback && _cliCarrito.length === 1 && _cliCarrito[0].prodId === 'GOTERO') {
+    _cliCarrito[0].qty = parseInt(fallback.value)||1;
+    total = _cliCarrito[0].qty * 15;
+  }
   var elTotal = el('cli-total');
-  if (elTotal) elTotal.textContent = '$' + total;
+  if (elTotal) elTotal.textContent = '$' + total.toFixed(2).replace('.00','');
 }
 
 // El cliente envía su pedido
 function enviarPedidoCliente() {
-  var cant = parseInt(el('cli-cant').value) || 1;
   var nombre = el('cli-nombre').value.trim();
   var tel = el('cli-tel').value.trim();
   var dir = el('cli-dir').value.trim();
   el('cli-err').style.display = 'none';
 
-  if (cant < 1) { showErr('cli-err','❌ La cantidad debe ser al menos 1.'); return; }
   if (!nombre || !tel || !dir) { showErr('cli-err','❌ Completa todos tus datos.'); return; }
   if (!VENDEDOR_REF) { showErr('cli-err','❌ Enlace inválido. Pide al vendedor su enlace de nuevo.'); return; }
 
@@ -6108,13 +6159,22 @@ function enviarPedidoCliente() {
 
   var today = new Date().toISOString().slice(0,10);
   var pedidoId = 'PED' + Date.now().toString().slice(-8);
-  var total = cant * 15;
 
+  // Construir items desde el carrito dinámico
+  var itemsCarrito = _cliCarrito.filter(function(x){ return x.qty > 0; });
+  if (!itemsCarrito.length && !el('cli-cant-fallback')) {
+    showErr('cli-err','❌ Selecciona al menos un producto.');
+    return;
+  }
+  if (!itemsCarrito.length && el('cli-cant-fallback')) {
+    itemsCarrito = [{ prodId:'GOTERO', name:'Gotero PrimeUnity', price:15, qty: parseInt(el('cli-cant-fallback').value)||1 }];
+  }
+  var total = itemsCarrito.reduce(function(s,x){ return s + (x.qty*x.price); }, 0);
   var pedido = {
     id: pedidoId,
     afil_id: null,
     afil_nombre: '',
-    items: [{ prodId:'GOTERO', name:'Producto PrimeUnity', qty:cant, price:15 }],
+    items: itemsCarrito.map(function(x){ return { prodId:x.prodId, name:x.name, qty:x.qty, price:x.price }; }),
     total: total,
     metodo: 'Por coordinar',
     estado: 'Pendiente',
@@ -6123,7 +6183,7 @@ function enviarPedidoCliente() {
     cliente_tel: tel,
     cliente_dir: dir,
     vendedor_ref: VENDEDOR_REF,
-    cant_goteros: cant,
+    cant_goteros: itemsCarrito.reduce(function(s,x){return s+x.qty;},0),
     comisiones_generadas: false
   };
 
