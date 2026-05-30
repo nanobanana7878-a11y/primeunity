@@ -5961,24 +5961,19 @@ var VENDEDOR_REF = null;
         mostrarPantallaCliente(codigo);
       }
     } else {
-      // No hay código en URL
-      var esRegistroSinRef = params.get('registro') === '1';
-      if (esRegistroSinRef) {
-        // Viene de la landing sin código de referido → mostrar formulario de registro directamente
-        var scLogin = el('screen-login');
-        if (scLogin) scLogin.style.display = 'flex';
-        setTimeout(function(){ setMode('reg'); }, 100);
-      } else {
-        // Recuperar del sessionStorage si existe (ej: recargó la página)
-        try {
-          var guardado = sessionStorage.getItem('oxivision_ref');
-          if (guardado) {
-            VENDEDOR_REF = guardado;
-            console.log('[Enlace] Vendedor recuperado de sessionStorage:', guardado);
-            mostrarPantallaCliente(guardado);
-          }
-        } catch(e) {}
-      }
+      // No hay código en URL — mostrar login normal siempre
+      // Si viene ?registro=1 sin código, mostrar login; el usuario puede
+      // hacer clic en "Regístrate" si quiere registrarse
+      var scLogin = el('screen-login');
+      if (scLogin) scLogin.style.display = 'flex';
+      // Recuperar ref de sessionStorage solo para venta (no forzar registro)
+      try {
+        var guardado = sessionStorage.getItem('oxivision_ref');
+        if (guardado && params.get('registro') !== '1') {
+          VENDEDOR_REF = guardado;
+          mostrarPantallaCliente(guardado);
+        }
+      } catch(e) {}
     }
   } catch(e) { console.error('[Enlace] Error:', e); }
 })();
