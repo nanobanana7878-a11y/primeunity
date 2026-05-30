@@ -2964,7 +2964,11 @@ function renderAdmPedidos() {
       act = (o.estado==='Pendiente' && !o.comisionesGeneradas)
         ? '<button class="btn bg bsm2" data-id="'+o.id+'" onclick="aprobarVentaCliente(this.dataset.id)">✓ Pagado</button>'+
           '<button class="btn br bsm2" data-id="'+o.id+'" onclick="rejectOrd(this.dataset.id)" style="margin-left:.3rem">✕</button>'
-        : '';
+        : (o.estado==='Pagado' || o.comisionesGeneradas)
+          ? (o.enviado
+            ? '<span style="font-size:.72rem;color:var(--b6);font-weight:700">✅ Enviado</span>'
+            : '<button class="btn bsm2" style="background:#b45309;color:#fff" data-id="'+o.id+'" onclick="marcarPedidoEnviado(this.dataset.id)">📦 Marcar enviado</button>')
+          : '';
     } else {
       // Pedido de afiliado (modelo paquetes) — comportamiento original
       quien = o.afil;
@@ -2987,9 +2991,17 @@ function renderAdmPedidos() {
           '<button class="btn bo bsm2" data-id="'+o.id+'" onclick="editRangoPedido(this.dataset.id)" title="Editar rango">📦</button>'+
           '<button class="btn br bsm2" data-id="'+o.id+'" onclick="rejectOrd(this.dataset.id)">✕</button>'+
           '</div>'
-        : (o.estado==='Aprobado' && enWorkin
-          ? '<span style="font-size:.72rem;color:#065f46;font-weight:700">⚡ En WorkIn</span>'
-          : '');
+        : o.estado==='Aprobado'
+          ? (enWorkin
+            ? '<span style="font-size:.72rem;color:#065f46;font-weight:700">⚡ En WorkIn</span>'
+            : (o.enviado
+              ? '<span style="font-size:.72rem;color:var(--b6);font-weight:700">✅ Enviado</span>'
+              : '<button class="btn bsm2" style="background:#b45309;color:#fff" data-id="'+o.id+'" onclick="marcarPedidoEnviado(this.dataset.id)">📦 Marcar enviado</button>'))
+          : o.estado==='Pagado'
+          ? (o.enviado
+            ? '<span style="font-size:.72rem;color:var(--b6);font-weight:700">✅ Enviado</span>'
+            : '<button class="btn bsm2" style="background:#b45309;color:#fff" data-id="'+o.id+'" onclick="marcarPedidoEnviado(this.dataset.id)">📦 Marcar enviado</button>')
+          : '';
     }
     return '<tr><td class="fw" style="font-family:monospace;font-size:.7rem">'+o.id+'</td>'+
       '<td>'+quien+(pkgBadge||'')+'</td>'+
@@ -3002,6 +3014,22 @@ function renderAdmPedidos() {
       '<td>'+act+'</td></tr>';
   }).join('')||'<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--g400)">Sin pedidos</td></tr>';
   buildTabs();
+}
+
+function marcarPedidoEnviado(pedidoId) {
+  var o = C.pedidos.filter(function(x){ return x.id===pedidoId; })[0];
+  if (!o) return;
+  var nombre = o.clienteNombre || o.afil || pedidoId;
+  if (!confirm('¿Marcar como enviado el pedido de '+nombre+'?')) return;
+  showLoading('Registrando envío...');
+  var today = new Date().toISOString().slice(0,10);
+  Promise.all([
+    sbPatch('pedidos', { enviado: true, fecha_envio: today }, '?id=eq.'+pedidoId),
+    sbPost('actividad', { tipo:'envio', txt:'📦 Pedido '+pedidoId+' marcado como enviado — '+nombre, fecha:today })
+  ])
+  .then(function(){ return loadAdmin(); })
+  .then(function(){ renderAdmPedidos(); hideLoading(); showAlert('✅ Pedido marcado como enviado.','suc'); })
+  .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
 }
 
 function detectRangoFromTotal(total) {
