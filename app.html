@@ -4726,7 +4726,17 @@ function abrirSaldoPaquete(saldo, tipo, pkgName) {
   el('sp-saldo-total').textContent = fmt(saldo);
   spActualizar();
   // Renderizar SOLO productos individuales (NO paquetes) — el saldo del paquete se gasta en goteros sueltos
-  var prods = C.productos.filter(function(p){ return p.visible && p.stock > 0 && p.cat !== 'paquete' && p.cat !== 'recompra'; });
+  var prods = C.productos.filter(function(p){
+    return p.stock > 0 && p.cat !== 'paquete' && p.cat !== 'recompra';
+  });
+  // Si no hay productos con cat definida, mostrar todos los no-paquete
+  if (!prods.length) {
+    prods = C.productos.filter(function(p){ return p.stock > 0 && (!p.cat || p.cat === 'producto'); });
+  }
+  if (!prods.length) {
+    el('sp-productos-grid').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--g400)">No hay productos disponibles en este momento. Contacta al administrador.</div>';
+    return;
+  }
   el('sp-productos-grid').innerHTML = prods.map(function(p) {
     var imgHtml = p.fotos && p.fotos.length
       ? '<img src="'+p.fotos[0]+'" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:.5rem">'
