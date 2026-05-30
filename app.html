@@ -3205,10 +3205,13 @@ function _doApproveOrd(id) {
     .then(function(){
       buildTabs(); renderAdmPedidos(); hideLoading();
       showAlert('✅ Aprobado. Rango: '+newPkg+(comLogs.length?' | Coms: '+comLogs.join(', '):''),'suc');
-      // Abrir modal de asignación de productos para el afiliado
+      // Abrir modal solo si el afiliado NO escogió productos al comprar
       var pkNew2 = RANGOS[newPkg]||{};
       var saldoPaq = pkNew2.price || 0;
-      if (saldoPaq > 0) {
+      var tieneProductos = o.items && o.items.some(function(it){
+        return it.prodId && it.prodId !== newPkg && it.prodId !== 'PKG' && !it._saldoPaquete;
+      });
+      if (saldoPaq > 0 && !tieneProductos) {
         setTimeout(function(){
           _adminAsignarProductos(af.id, af.nombre+' '+af.apellido, newPkg, saldoPaq, id);
         }, 600);
