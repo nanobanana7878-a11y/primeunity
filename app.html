@@ -2193,16 +2193,21 @@ function calcPtsPropios(af) {
   return pkg_pts + (af.puntos || 0);
 }
 
-// Puntos de grupo recibidos (% de recompras de red)
+// Puntos de grupo recibidos (% de compras + recompras de la red)
 function calcPtsGrupo(afilId, nivel) {
   if (nivel > 3) return 0;
-  var children = C.afiliados.filter(function(a) { return a.patrocinador === (C.afiliados.find(function(x){ return x.id===afilId; })||{}).refCode; });
+  var parent = C.afiliados.filter(function(x){ return x.id===afilId; })[0];
+  if (!parent) return 0;
+  var children = C.afiliados.filter(function(a) { return a.patrocinador === parent.refCode; });
   var total = 0;
   children.forEach(function(child) {
-    var rc = C.recompras.filter(function(r){ return r.afilId===child.id && r.pagado; }).length;
-    var pts_child = Math.floor(((RANGOS[child.pkg]||{}).recompra||0) / PTS_RATIO) * rc;
-    total += pts_child * (PTS_GRUPO[nivel] || 0);
-    total += calcPtsGrupoChildren(child.id, child.refCode, nivel+1);
+    // Puntos del hijo: paquete + recompras pagadas
+    var ptsPkg = child.paquetePagado ? Math.floor(((RANGOS[child.pkg]||{}).price||0) / PTS_RATIO) : 0;
+    var ptsRecs = C.recompras.filter(function(r){ return r.afilId===child.id && r.pagado; })
+                   .reduce(function(s,r){ return s + Math.floor(r.monto/PTS_RATIO); }, 0);
+    var ptsHijo = ptsPkg + ptsRecs;
+    total += ptsHijo * (PTS_GRUPO[nivel] || 0);
+    total += calcPtsGrupo(child.id, nivel+1);
   });
   return Math.floor(total);
 }
@@ -2212,9 +2217,12 @@ function calcPtsGrupoChildren(parentId, parentRef, nivel) {
   var children = C.afiliados.filter(function(a) { return a.patrocinador === parentRef; });
   var total = 0;
   children.forEach(function(child) {
-    var rc = C.recompras.filter(function(r){ return r.afilId===child.id && r.pagado; }).length;
-    var pts_child = Math.floor(((RANGOS[child.pkg]||{}).recompra||0) / PTS_RATIO) * rc;
-    total += pts_child * (PTS_GRUPO[nivel] || 0);
+    // Puntos del hijo: paquete + recompras pagadas
+    var ptsPkg = child.paquetePagado ? Math.floor(((RANGOS[child.pkg]||{}).price||0) / PTS_RATIO) : 0;
+    var ptsRecs = C.recompras.filter(function(r){ return r.afilId===child.id && r.pagado; })
+                   .reduce(function(s,r){ return s + Math.floor(r.monto/PTS_RATIO); }, 0);
+    var ptsHijo = ptsPkg + ptsRecs;
+    total += ptsHijo * (PTS_GRUPO[nivel] || 0);
     if (nivel < 3) total += calcPtsGrupoChildren(child.id, child.refCode, nivel+1);
   });
   return Math.floor(total);
@@ -4983,9 +4991,9 @@ function renderPuntos(){
   var puedeCanjear=diasRest<=5;
   var totalConGrupo = disponibles + disponiblesGrupo;
   el('pts-kpis').innerHTML=
-    '<div class="kpi"><div class="klbl">Pts propios</div><div class="kval amber">'+totalPts+' ⭐</div><div class="ksub">$10 = 1 punto</div></div>'+
-    '<div class="kpi"><div class="klbl">Pts de red</div><div class="kval blue">+'+ptsGrupo+' ⭐</div><div class="ksub">N1=10% N2=5% N3=3%</div></div>'+
-    '<div class="kpi"><div class="klbl">Disponibles (propios)</div><div class="kval green">'+disponibles+' ⭐</div></div>'+
+    '<div class="kpi"><div class="klbl">Pts propios</div><div class="kval amber">'+disponibles+' ⭐</div><div class="ksub">$10 = 1 punto · canjeados: '+canjeados+'</div></div>'+
+    '<div class="kpi"><div class="klbl">Pts grupales (red)</div><div class="kval blue">'+ptsGrupo+' ⭐</div><div class="ksub">N1=10% N2=5% N3=3%</div></div>'+
+    '<div class="kpi" style="border-color:var(--green)"><div class="klbl">Total disponible</div><div class="kval green">'+totalConGrupo+' ⭐</div><div class="ksub">propios + grupales</div></div>'+
     '<div class="kpi"><div class="klbl">Ciclo actual</div><div class="kval amber">Día '+diaEnCiclo+'</div><div class="ksub">de 90 · faltan '+diasRest+' días</div></div>';
   el('pts-como').innerHTML='<div style="display:flex;flex-direction:column;gap:.75rem">'+
     '<div style="display:flex;align-items:center;gap:.875rem;padding:.875rem;background:var(--g50);border-radius:var(--r);border:1px solid var(--g100)"><div style="width:38px;height:38px;border-radius:50%;background:var(--b1);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">📦</div><div style="flex:1"><div style="font-weight:700;font-size:.825rem">Compra de paquete</div><div style="font-size:.75rem;color:var(--g500)">$10 = 1 punto (pago único)</div></div><span style="font-weight:700;color:var(--b6)">+'+ptsPkg+' ⭐</span></div>'+
@@ -5015,7 +5023,9 @@ function renderPuntos(){
 
 function doCanjar(premioId,nombre,puntos){
   var af=C.afiliados.filter(function(a){return a.id===cUser.id;})[0]||cUser;
-  var disponibles=(af.puntos||0)-(af.puntosCanjeados||0);
+  var ptsPkg2 = af.paquetePagado ? Math.floor(((RANGOS[af.pkg]||{}).price||0)/PTS_RATIO) : 0;
+  var ptsRec2 = C.recompras.filter(function(r){return r.afilId===af.id&&r.pagado;}).reduce(function(s,r){return s+Math.floor(r.monto/PTS_RATIO);},0);
+  var disponibles=(ptsPkg2 + ptsRec2 + (af.puntos||0))-(af.puntosCanjeados||0);
   if(disponibles<puntos){showAlert('No tienes suficientes puntos.','err');return;}
   if(!confirm('¿Canjear "'+nombre+'" por '+puntos+' puntos?')) return;
   var newCanjeados=(af.puntosCanjeados||0)+puntos;
