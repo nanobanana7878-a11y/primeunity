@@ -3316,9 +3316,13 @@ function renderAdmAfil() {
       : '';
     // Botón WorkIn mensual
     var workinActivo = (a.workins||[]).some(function(w){ return w.estado==='activo'; });
+    var workinListoEntregar = (a.workins||[]).some(function(w){ return w.estado==='listo_entregar'; });
     var workinBtn = workinActivo
       ? '<button class="btn" style="background:#065f46;color:#fff" data-id="'+a.id+'" onclick="pagarWorkinMensual(this.dataset.id)" title="Pagar WorkIn mensual">⚡ WorkIn</button>'
       : '';
+    if (workinListoEntregar) {
+      workinBtn += '<button class="btn" style="background:#b45309;color:#fff" data-id="'+a.id+'" onclick="marcarWorkinEnviado(this.dataset.id)" title="Marcar goteros enviados">📦 Enviado</button>';
+    }
     rows+='<tr><td><div style="display:flex;align-items:center;gap:.5rem"><span style="font-family:monospace;font-size:.7rem;background:var(--g100);padding:.1rem .4rem;border-radius:4px;color:var(--b6)">'+a.id+'</span>'+upgradeTag+'</div><div class="fw" style="margin-top:.1rem">'+a.nombre+' '+a.apellido+' '+(a.tipo==='promotor'?'<span style="font-size:.6rem;background:#dbeafe;color:#1e40af;padding:.1rem .35rem;border-radius:4px;font-weight:700">PROMOTOR</span>':'<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:.1rem .35rem;border-radius:4px;font-weight:700">AFILIADO</span>')+'</div><div style="font-size:.7rem;color:var(--g400)">'+a.email+'</div></td><td>'+rangoHTML(a.pkg)+'</td><td style="font-size:.78rem">'+patNm+'</td><td>'+estadoTd+'</td><td><span class="pill '+(rc&&rc.pagado?'ok':'pend')+'">'+(rc&&rc.pagado?'Al día':'Pendiente')+'</span></td><td>'+bonoTd+'</td><td style="color:var(--amber);font-weight:700">⭐ '+pts+'</td><td style="display:flex;gap:.35rem;flex-wrap:wrap">'+activarBtn+convertirBtn+workinBtn+'<button class="btn bgh bsm2" data-id="'+a.id+'" data-em="'+a.email+'" onclick="adminResetPass(this.dataset.id,this.dataset.em)">🔑</button>'+
 '<button class="btn bo bsm2" data-id="'+a.id+'" data-ref="'+a.refCode+'" data-pat="'+(a.patrocinador||'')+'" data-nm="'+a.nombre+' '+a.apellido+'" onclick="adminEditPatrocinador(this.dataset.id,this.dataset.nm,this.dataset.pat)" title="Editar patrocinador">🔗</button>'+
 '<button class="btn br bsm2" data-id="'+a.id+'" data-nm="'+a.nombre+' '+a.apellido+'" onclick="confirmDel(this.dataset.id,this.dataset.nm)">🗑️</button></td></tr>';
@@ -4543,6 +4547,30 @@ function cobrarWorkin(wId) {
     })
     .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
 }
+// ── Admin: marcar envío de goteros WorkIn ──
+function marcarWorkinEnviado(afilId) {
+  var af = C.afiliados.filter(function(a){ return a.id===afilId; })[0];
+  if (!af) return;
+  var workins = (af.workins||[]).slice();
+  var listos = workins.filter(function(w){ return w.estado==='listo_entregar'; });
+  if (!listos.length) { showAlert('Sin WorkIn listo para entregar.','err'); return; }
+  var nombres = listos.map(function(w){ return (w.rango||'?')+' ('+w.id+')'; }).join(', ');
+  if (!confirm('¿Marcar goteros enviados para '+af.nombre+' '+af.apellido+'?\n\nPaquetes: '+nombres)) return;
+  var today = new Date().toISOString().slice(0,10);
+  listos.forEach(function(w){
+    w.estado = 'enviado';
+    w.fechaEnvio = today;
+  });
+  showLoading('Registrando envío...');
+  sbPatch('afiliados', {workins: workins}, '?id=eq.'+af.id)
+    .then(function(){ return loadAdmin(); })
+    .then(function(){
+      renderAdmAfils();
+      showAlert('✅ Goteros marcados como enviados para '+af.nombre+'.','suc');
+    })
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
+}
+
 var _spSaldo = 0;
 var _spTipo = '';
 var _spPkgName = '';
