@@ -623,6 +623,105 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
       </div>
     </div>
 
+    <!-- Simulador WorkIn -->
+    <div style="background:rgba(255,255,255,.03);border:1px solid rgba(5,150,105,.25);border-radius:24px;padding:2.5rem;margin-bottom:3rem;max-width:700px;margin-left:auto;margin-right:auto">
+      <div style="text-align:center;margin-bottom:2rem">
+        <span style="font-size:1.5rem">🧮</span>
+        <h3 style="color:#fff;font-size:1.3rem;font-weight:700;margin:.5rem 0 .25rem">Simula tu ganancia WorkIn</h3>
+        <p style="color:rgba(255,255,255,.45);font-size:.85rem">Mueve el slider y ve cuánto puedes ganar</p>
+      </div>
+
+      <!-- Selector de paquete -->
+      <div style="margin-bottom:1.5rem">
+        <label style="display:block;color:rgba(255,255,255,.6);font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">Elige tu paquete</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem" id="wi-pkgs">
+          <button onclick="wkSel('Bronce',60)" class="wi-pkg" style="background:rgba(205,127,50,.15);border:1.5px solid rgba(205,127,50,.4);color:#CD7F32;border-radius:10px;padding:.6rem .5rem;font-weight:700;font-size:.82rem;cursor:pointer">🥉 Bronce<br><span style="font-size:.75rem;opacity:.8">$60</span></button>
+          <button onclick="wkSel('Semilla',90)" class="wi-pkg" style="background:rgba(139,195,74,.1);border:1.5px solid rgba(139,195,74,.3);color:#8BC34A;border-radius:10px;padding:.6rem .5rem;font-weight:700;font-size:.82rem;cursor:pointer">🌱 Semilla<br><span style="font-size:.75rem;opacity:.8">$90</span></button>
+          <button onclick="wkSel('Plata',120)" class="wi-pkg" style="background:rgba(176,176,176,.1);border:1.5px solid rgba(176,176,176,.3);color:#C0C0C0;border-radius:10px;padding:.6rem .5rem;font-weight:700;font-size:.82rem;cursor:pointer">🥈 Plata<br><span style="font-size:.75rem;opacity:.8">$120</span></button>
+          <button onclick="wkSel('Oro',180)" class="wi-pkg" style="background:rgba(218,165,32,.1);border:1.5px solid rgba(218,165,32,.3);color:#DAA520;border-radius:10px;padding:.6rem .5rem;font-weight:700;font-size:.82rem;cursor:pointer">🥇 Oro<br><span style="font-size:.75rem;opacity:.8">$180</span></button>
+          <button onclick="wkSel('Esmeralda',300)" class="wi-pkg" style="background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.25);color:#10B981;border-radius:10px;padding:.6rem .5rem;font-weight:700;font-size:.82rem;cursor:pointer">💚 Esmeralda<br><span style="font-size:.75rem;opacity:.8">$300</span></button>
+          <button onclick="wkSel('Diamante',450)" class="wi-pkg" style="background:rgba(91,164,207,.08);border:1.5px solid rgba(91,164,207,.25);color:#5BA4CF;border-radius:10px;padding:.6rem .5rem;font-weight:700;font-size:.82rem;cursor:pointer">💎 Diamante<br><span style="font-size:.75rem;opacity:.8">$450</span></button>
+        </div>
+      </div>
+
+      <!-- Slider de paquetes -->
+      <div style="margin-bottom:2rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+          <label style="color:rgba(255,255,255,.6);font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em">Cantidad de paquetes</label>
+          <span id="wi-cant-lbl" style="color:#10b981;font-weight:800;font-size:1.1rem">1 paquete</span>
+        </div>
+        <input type="range" id="wi-cant" min="1" max="5" value="1" oninput="wkCalc()" style="width:100%;accent-color:#10b981;height:6px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.25rem"><span>1</span><span>2</span><span>3</span><span>4</span><span>5 máx</span></div>
+      </div>
+
+      <!-- Resultados -->
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1.5rem">
+        <div style="background:rgba(5,150,105,.1);border:1px solid rgba(5,150,105,.2);border-radius:14px;padding:1.25rem;text-align:center">
+          <div style="font-size:.7rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">Ganancia mensual</div>
+          <div id="wi-mes" style="font-size:2rem;font-weight:800;color:#10b981">$18</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:.2rem">20% × inversión</div>
+        </div>
+        <div style="background:rgba(255,184,0,.06);border:1px solid rgba(255,184,0,.15);border-radius:14px;padding:1.25rem;text-align:center">
+          <div style="font-size:.7rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">Total en 90 días</div>
+          <div id="wi-total" style="font-size:2rem;font-weight:800;color:#FFB800">$54</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:.2rem">3 meses de trabajo</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:1.25rem;text-align:center">
+          <div style="font-size:.7rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">Inversión total</div>
+          <div id="wi-inv" style="font-size:2rem;font-weight:800;color:rgba(255,255,255,.8)">$90</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:.2rem">capital en trabajo</div>
+        </div>
+        <div style="background:rgba(91,164,207,.06);border:1px solid rgba(91,164,207,.15);border-radius:14px;padding:1.25rem;text-align:center">
+          <div style="font-size:.7rem;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">Recuperas al final</div>
+          <div id="wi-prod" style="font-size:2rem;font-weight:800;color:#5BA4CF">+ productos</div>
+          <div style="font-size:.72rem;color:rgba(255,255,255,.3);margin-top:.2rem">inventario físico</div>
+        </div>
+      </div>
+
+      <!-- Barra de progreso de retorno -->
+      <div style="margin-bottom:1.5rem">
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:.4rem">
+          <span>Retorno sobre inversión</span>
+          <span id="wi-roi" style="color:#10b981;font-weight:700">60%</span>
+        </div>
+        <div style="height:10px;background:rgba(255,255,255,.06);border-radius:5px;overflow:hidden">
+          <div id="wi-roi-bar" style="height:100%;width:60%;background:linear-gradient(90deg,#059669,#10b981);border-radius:5px;transition:width .4s ease"></div>
+        </div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.3);margin-top:.3rem">en 90 días · sin contar el valor del inventario recuperado</div>
+      </div>
+
+      <!-- Nota -->
+      <div style="background:rgba(5,150,105,.06);border-radius:10px;padding:.75rem 1rem;font-size:.78rem;color:rgba(255,255,255,.45);text-align:center">
+        💡 Con <strong style="color:rgba(255,255,255,.7)">5 paquetes Diamante</strong> ganarías <strong style="color:#10b981">$450/mes</strong> y <strong style="color:#FFB800">$1,350 en 90 días</strong> + 150 productos
+      </div>
+    </div>
+
+    <script>
+    var wkPrecio = 90, wkNombre = 'Semilla', wkProds = {'Bronce':4,'Semilla':6,'Plata':8,'Oro':12,'Esmeralda':20,'Diamante':30};
+    function wkSel(nombre, precio) {
+      wkNombre = nombre; wkPrecio = precio;
+      document.querySelectorAll('.wi-pkg').forEach(function(b){ b.style.outline='none'; });
+      event.currentTarget.style.outline='2px solid #10b981';
+      wkCalc();
+    }
+    function wkCalc() {
+      var cant = parseInt(document.getElementById('wi-cant').value);
+      var inv = wkPrecio * cant;
+      var mes = Math.round(inv * 0.20);
+      var total = mes * 3;
+      var roi = Math.round((total / inv) * 100);
+      var prods = (wkProds[wkNombre]||0) * cant;
+      document.getElementById('wi-cant-lbl').textContent = cant + (cant===1?' paquete':' paquetes');
+      document.getElementById('wi-mes').textContent = '$' + mes;
+      document.getElementById('wi-total').textContent = '$' + total;
+      document.getElementById('wi-inv').textContent = '$' + inv;
+      document.getElementById('wi-prod').textContent = '+ ' + prods + ' uds';
+      document.getElementById('wi-roi').textContent = roi + '%';
+      document.getElementById('wi-roi-bar').style.width = Math.min(roi, 100) + '%';
+    }
+    wkCalc();
+    </script>
+
     <!-- CTA WorkIn -->
     <div style="text-align:center">
       <p style="color:rgba(255,255,255,.5);font-size:.875rem;margin-bottom:1.5rem">Máximo 5 paquetes por rango · Sin retiro antes de 90 días · Solo para afiliados activos</p>
