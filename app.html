@@ -1505,10 +1505,10 @@ var NCOM     = [0, 0.10, 0.10, 0.10, 0.10, 0.10, 0.01, 0.01, 0.01, 0.01, 0.01];
 
 // ═══════════════════════════════
 // COMISIONES
-// PROMOTOR: gana COM_PROMOTOR fijo por cada gotero que vende (sin niveles)
+// PROMOTOR: gana 20% del total de cada venta (aplica a cualquier producto, sin niveles)
 // AFILIADO MLM: usa el sistema de niveles que ya existe (paquetes/red)
 // ═══════════════════════════════
-var COM_PROMOTOR = 5.00;      // $ que gana el promotor por cada gotero vendido
+var COM_PROMOTOR = 0.20;      // 20% del total de venta — aplica a cualquier producto
 var PRECIO_GOTERO = 15;       // precio de venta al público
 var PUNTOS_POR_GOTERO = 1;    // 1 punto por cada gotero vendido
 
@@ -1526,18 +1526,18 @@ var RANGOS_VENDEDOR = [
 // El promotor gana COM_PROMOTOR fijo por cada gotero. Sin niveles.
 // Devuelve el objeto-pago listo para sbPost.
 // ═══════════════════════════════
-function generarComisionPromotor(promotor, cantidadGoteros, pedidoId, clienteNombre) {
+function generarComisionPromotor(promotor, totalVenta, pedidoId, clienteNombre) {
   var today = new Date().toISOString().slice(0,10);
-  if (!promotor || cantidadGoteros < 1) return null;
-  // Seguridad: si el promotor no tiene id, no se puede generar la comisión
+  if (!promotor || !totalVenta || totalVenta <= 0) return null;
   if (!promotor.id) { console.error('[Comisión] El promotor no tiene id — comisión NO generada'); return null; }
-  var monto = Math.round(COM_PROMOTOR * cantidadGoteros * 100) / 100;
+  // 20% del total de la venta, independiente del precio del producto
+  var monto = Math.round(COM_PROMOTOR * totalVenta * 100) / 100;
   return {
     id: 'CV' + Date.now().toString().slice(-7) + Math.random().toString(36).slice(-3).toUpperCase(),
     afil_id: promotor.id,
     afil_nombre: promotor.nombre + ' ' + promotor.apellido,
     monto: monto,
-    concepto: 'Venta — ' + cantidadGoteros + ' producto(s) a ' + (clienteNombre||'cliente') + ' [' + pedidoId + ']',
+    concepto: 'Venta 20% — $'+totalVenta+' · cliente: ' + (clienteNombre||'cliente') + ' [' + pedidoId + ']',
     fecha: today,
     estado: 'Pendiente'
   };
@@ -1592,13 +1592,14 @@ function aprobarVentaCliente(pedidoId) {
   showLoading('Aprobando venta y generando comisiones...');
   var today = new Date().toISOString().slice(0,10);
   var cantGoteros = ped.cantGoteros || 1;
+  var totalVenta = ped.total || 0;
 
-  // 1. Generar la comisión del promotor ($5 por gotero, sin niveles)
-  var pagoComision = generarComisionPromotor(vendedor, cantGoteros, ped.id, ped.clienteNombre);
+  // 1. Generar la comisión del promotor (20% del total, aplica a cualquier producto)
+  var pagoComision = generarComisionPromotor(vendedor, totalVenta, ped.id, ped.clienteNombre);
   var updates = pagoComision ? [ sbPost('pagos', pagoComision) ] : [];
 
-  // 2. Sumar puntos al vendedor (1 punto por gotero)
-  var puntosNuevos = (vendedor.puntos||0) + (cantGoteros * PUNTOS_POR_GOTERO);
+  // 2. Sumar puntos al vendedor ($10 = 1 punto sobre el total de venta)
+  var puntosNuevos = (vendedor.puntos||0) + Math.floor(totalVenta / PTS_RATIO);
   updates.push(sbPatch('afiliados', { puntos: puntosNuevos }, '?id=eq.'+vendedor.id));
 
   // 3. Marcar el pedido como pagado y con comisiones generadas
