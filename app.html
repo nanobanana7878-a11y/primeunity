@@ -1159,7 +1159,7 @@ document.querySelectorAll('.reveal').forEach(function(el){ obsLanding.observe(el
 
     <!-- INVITAR -->
     <div class="sec" id="sec-afil-inv">
-      <h2 class="sec-title">Invitar Afiliados</h2>
+      <h2 class="sec-title">🤝 Invitar a la Red MLM</h2>
       <div class="two">
         <div class="card"><div class="ch"><h3>🔗 Tu enlace de afiliado</h3></div>
           <div class="cb" id="afil-inv-enlace-body">
@@ -1870,11 +1870,18 @@ function renderPromoEnlace() {
   var base = window.location.origin + window.location.pathname;
   var enlace = base + '?v=' + af.refCode;
   el('promo-enlace-body').innerHTML =
-    '<p style="color:var(--g500);font-size:.9rem;line-height:1.6">Este es tu enlace personal. Compártelo por WhatsApp, redes sociales o donde quieras. Cada venta que entre por aquí es tuya.</p>'+
-    '<div style="background:var(--g100);border:1px dashed var(--g300);border-radius:var(--r);padding:1rem;margin:1rem 0;word-break:break-all;font-family:monospace;font-size:13px">'+enlace+'</div>'+
-    '<button class="btn bb" onclick="copiarTexto(\''+enlace+'\')">📋 Copiar mi enlace</button>'+
-    '<div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--g200)">'+
-    '<p style="font-size:.85rem;color:var(--g500)">Tu código de promotor: <strong style="color:var(--g700)">'+af.refCode+'</strong></p>'+
+    '<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #86efac;border-radius:12px;padding:1.1rem;margin-bottom:1.25rem">'+
+      '<div style="font-size:.72rem;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">🛒 Tu enlace de venta</div>'+
+      '<div style="font-size:.8rem;color:#14532d;margin-bottom:.75rem">Compártelo por WhatsApp o redes. Tus clientes podrán elegir y pedir los productos directamente. Cada venta que entre por aquí es tuya.</div>'+
+      '<div style="font-family:monospace;font-size:.72rem;word-break:break-all;background:rgba(255,255,255,.7);border:1px solid #86efac;border-radius:8px;padding:.65rem .75rem;color:#14532d;margin-bottom:.6rem">'+enlace+'</div>'+
+      '<button class="btn bb" style="width:100%;background:#16a34a" onclick="copiarTexto(\''+enlace+'\')">📋 Copiar enlace de venta</button>'+
+    '</div>'+
+    '<div style="border-top:1px solid var(--g100);padding-top:.875rem">'+
+      '<div style="font-size:.72rem;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Tu código de promotor</div>'+
+      '<div style="display:flex;align-items:center;gap:.75rem">'+
+        '<div style="font-family:monospace;font-size:1.25rem;font-weight:800;background:var(--g100);border-radius:var(--r);padding:.5rem 1.25rem;flex:1;text-align:center;letter-spacing:.15em">'+af.refCode+'</div>'+
+        '<button class="btn bgh" onclick="copiarTexto(\''+af.refCode+'\')">📋</button>'+
+      '</div>'+
     '</div>';
 }
 
@@ -5107,35 +5114,21 @@ function openUpgradePanel() {
 function renderAfilInv(){
   var af=C.afiliados.filter(function(a){return a.id===cUser.id;})[0]||cUser;
   var base=window.location.origin+window.location.pathname;
-  var enlace=base+'?v='+af.refCode;
   var enlaceReg = base + '?registro=1&v=' + af.refCode;
   el('afil-inv-enlace-body').innerHTML=
-    // --- Enlace para AFILIADOS (registro) ---
-    '<div style="margin-bottom:1.25rem">'+
-      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">'+
-        '<span style="background:#dbeafe;color:#1e40af;font-size:.7rem;font-weight:700;padding:.2rem .6rem;border-radius:20px">PARA AFILIARSE</span>'+
-      '</div>'+
-      '<div style="font-family:monospace;font-size:.75rem;word-break:break-all;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:.65rem .75rem;color:#1e3a8a;margin-bottom:.5rem">'+enlaceReg+'</div>'+
+    '<div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe;border-radius:12px;padding:1.1rem;margin-bottom:1.25rem">'+
+      '<div style="font-size:.72rem;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">🤝 Tu enlace para nuevos afiliados</div>'+
+      '<div style="font-size:.8rem;color:#1e3a8a;margin-bottom:.75rem">Quien entre por aquí va directo al formulario de registro con tu código ya listo. Solo para quienes quieren unirse a la red MLM.</div>'+
+      '<div style="font-family:monospace;font-size:.72rem;word-break:break-all;background:rgba(255,255,255,.7);border:1px solid #bfdbfe;border-radius:8px;padding:.65rem .75rem;color:#1e3a8a;margin-bottom:.6rem">'+enlaceReg+'</div>'+
       '<button class="btn bb" style="width:100%" onclick="copiarTexto(\''+enlaceReg+'\')">📋 Copiar enlace de registro</button>'+
-      '<div style="font-size:.72rem;color:var(--g400);margin-top:.4rem">→ Quien entre por este enlace va directo al formulario de registro con tu código ya puesto.</div>'+
     '</div>'+
-    // --- Enlace para CLIENTES (comprar goteros) ---
-    '<div style="border-top:1px solid var(--g100);padding-top:1.25rem;margin-bottom:1.25rem">'+
-      '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">'+
-        '<span style="background:#dcfce7;color:#166534;font-size:.7rem;font-weight:700;padding:.2rem .6rem;border-radius:20px">PARA CLIENTES</span>'+
-      '</div>'+
-      '<div style="font-family:monospace;font-size:.75rem;word-break:break-all;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.65rem .75rem;color:#14532d;margin-bottom:.5rem">'+enlace+'</div>'+
-      '<button class="btn bo" style="width:100%" onclick="copiarTexto(\''+enlace+'\')">📋 Copiar enlace de cliente</button>'+
-      '<div style="font-size:.72rem;color:var(--g400);margin-top:.4rem">→ Quien entre por este enlace ve la página para comprar goteros.</div>'+
-    '</div>'+
-    // --- Código solo ---
     '<div style="border-top:1px solid var(--g100);padding-top:.875rem">'+
       '<div style="font-size:.72rem;font-weight:700;color:var(--g500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">O comparte solo tu código</div>'+
       '<div style="display:flex;align-items:center;gap:.75rem">'+
         '<div class="ref-code" style="font-size:1.25rem;padding:.5rem 1.25rem;flex:1;text-align:center">'+af.refCode+'</div>'+
         '<button class="btn bgh" onclick="copyCode()">📋 Copiar</button>'+
       '</div>'+
-      '<div style="font-size:.72rem;color:var(--g400);margin-top:.4rem">→ El nuevo afiliado lo escribe manualmente en el campo al registrarse.</div>'+
+      '<div style="font-size:.72rem;color:var(--g400);margin-top:.4rem">→ El nuevo afiliado lo escribe manualmente al registrarse.</div>'+
     '</div>';
   var refs=C.afiliados.filter(function(a){return a.patrocinador===af.refCode;});
   el('ref-cnt').textContent=refs.length;
