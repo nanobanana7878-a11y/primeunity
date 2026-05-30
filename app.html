@@ -4804,38 +4804,12 @@ function submitOrder(){
     .then(function(){
       return sbPost('actividad',{tipo:'pedido',txt:'Nuevo pedido '+ordId+' de '+af.nombre+' '+af.apellido+(pkgDelPedido?' [Paquete '+pkgDelPedido+']':''),fecha:today});
     })
-    .then(function(){
-      // ── ACTIVACIÓN INMEDIATA si es pedido de paquete ──
-      // El afiliado se activa al confirmar su selección de productos.
-      // El admin solo verifica que el pago llegó (USDT/BTC).
-      if (esPedidoSaldo && pkgDelPedido && RANGOS[pkgDelPedido]) {
-        var pk = RANGOS[pkgDelPedido];
-        var ptsNuevos = Math.floor(pk.price / (typeof PTS_RATIO !== 'undefined' ? PTS_RATIO : 10));
-        var patchAfil = {
-          pkg: pkgDelPedido,
-          paquete_pagado: true,
-          activo: true,
-          puntos: (af.puntos||0) + ptsNuevos,
-          acumulado: (af.acumulado||0) + total
-        };
-        // Si era promotor → convertir a Afiliado MLM
-        if (af.tipo === 'promotor') {
-          patchAfil.tipo = 'afiliado';
-        }
-        return sbPatch('afiliados', patchAfil, '?id=eq.'+af.id);
-      }
-      return Promise.resolve();
-    })
     .then(function(){ return loadAfil(af.id); })
     .then(function(){
-      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0] || cUser;
+      cUser = C.afiliados.filter(function(a){ return a.id===af.id; })[0]||cUser;
       cart=[]; updateCartUI(); buildTabs();
-      if (esPedidoSaldo && pkgDelPedido) {
-        showAlert('🎉 ¡Bienvenido a PrimeUnity! Ya eres Afiliado MLM '+pkgDelPedido+'. Tu pedido '+ordId+' está pendiente de verificación de pago.','suc');
-      } else {
-        showAlert('Pedido '+ordId+' enviado. El admin lo verificará en 1–24 horas.','suc');
-      }
-      setTimeout(function(){ goSec('sec-panel'); }, 1500);
+      showAlert('✅ Pedido '+ordId+' enviado. El admin verificará tu pago en 1–24 horas y activará tu cuenta.','suc');
+      setTimeout(function(){ goSec('sec-mis-ords'); }, 1500);
     })
     .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
 }
