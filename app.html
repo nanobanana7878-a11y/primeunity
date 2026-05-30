@@ -2967,7 +2967,7 @@ function renderAdmPedidos() {
         : (o.estado==='Pagado' || o.comisionesGeneradas)
           ? (o.enviado
             ? '<span style="font-size:.72rem;color:var(--b6);font-weight:700">✅ Enviado</span>'
-            : '<button class="btn bsm2" style="background:#b45309;color:#fff" data-id="'+o.id+'" onclick="marcarPedidoEnviado(this.dataset.id)">📦 Marcar enviado</button>')
+            : admBtnEnvio(o))
           : '';
     } else {
       // Pedido de afiliado (modelo paquetes) — comportamiento original
@@ -3014,6 +3014,18 @@ function renderAdmPedidos() {
       '<td>'+act+'</td></tr>';
   }).join('')||'<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--g400)">Sin pedidos</td></tr>';
   buildTabs();
+}
+
+function admBtnEnvio(o) {
+  var dias = o.fecha ? Math.floor((new Date()-new Date(o.fecha))/(1000*60*60*24)) : 0;
+  var rest = Math.max(0, ENVIO_DIAS_LIMITE - dias);
+  var venc = dias > ENVIO_DIAS_LIMITE;
+  var lbl = venc ? '⚠️ Vencido (+'+dias+'d)' : '📦 Enviar · '+rest+'d';
+  var col = venc ? '#dc2626' : '#b45309';
+  return '<div style="display:flex;flex-direction:column;gap:.2rem">'
+    + '<button class="btn bsm2" style="background:'+col+';color:#fff" data-id="'+o.id+'" onclick="marcarPedidoEnviado(this.dataset.id)">'+lbl+'</button>'
+    + (venc ? '<span style="font-size:.62rem;color:#dc2626;font-weight:700">⚠️ Límite 7d superado</span>' : '')
+    + '</div>';
 }
 
 function marcarPedidoEnviado(pedidoId) {
@@ -4500,6 +4512,8 @@ function _iniciarCompraPaquete(prodId, rngProd) {
 // WORKIN — Plan de Renta de Inventario
 // ═══════════════════════════════
 var WORKIN_DIAS = 90;
+var ENVIO_DIAS_LIMITE = 7;
+var WORKIN_ACTIVAR_LIMITE = 30;
 var WORKIN_REND = 0.20; // 20% mensual
 var WORKIN_MAX  = 5;    // máx paquetes por rango
 
@@ -4514,7 +4528,23 @@ function renderWorkIn() {
   // Calcular ganancia total WorkIn
   var gananciaTotal = workins.reduce(function(s,w){ return s+(w.gananciaAcum||0); },0);
 
+  // Calcular ventana de activacion
+  var _wkVentanaHtml = '';
+  if (!activos.length) {
+    var _ped0 = C.pedidos.filter(function(p){ return p.afilId===af.id && (p.estado==='Aprobado'||p.estado==='Pagado') && !p.vendedorRef; })
+      .sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); })[0];
+    if (_ped0) {
+      var _dias0 = Math.floor((new Date()-new Date(_ped0.fecha||''))/(1000*60*60*24));
+      var _rest0 = Math.max(0, WORKIN_ACTIVAR_LIMITE - _dias0);
+      if (_dias0 > WORKIN_ACTIVAR_LIMITE) {
+        _wkVentanaHtml = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--r);padding:.875rem;margin-bottom:1rem;font-size:.82rem;color:#991b1b">⚠️ La ventana de 30 días para activar WorkIn ha <strong>vencido</strong>. Contacta al administrador.</div>';
+      } else if (_rest0 <= 7) {
+        _wkVentanaHtml = '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:var(--r);padding:.875rem;margin-bottom:1rem;font-size:.82rem;color:#92400e">⏰ Te quedan <strong>'+_rest0+' días</strong> para activar tu WorkIn.</div>';
+      }
+    }
+  }
   var html = '<div style="max-width:700px;margin:0 auto">';
+  html += _wkVentanaHtml;
 
   // Header
   html += '<div style="background:linear-gradient(135deg,#1e3a5f,#0f6e56);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;color:#fff">'
@@ -4661,6 +4691,15 @@ function activarWorkin() {
   var activos = workins.filter(function(w){ return w.estado==='activo'; });
   if (activos.length >= WORKIN_MAX) { showAlert('Máximo '+WORKIN_MAX+' paquetes WorkIn activos.','err'); return; }
   if (!af.paquetePagado) { showAlert('Necesitas un paquete activo.','err'); return; }
+  // Verificar ventana de 30 dias
+  if (!activos.length) {
+    var ped0 = C.pedidos.filter(function(p){ return p.afilId===af.id && (p.estado==='Aprobado'||p.estado==='Pagado') && !p.vendedorRef; })
+      .sort(function(a,b){ return (b.fecha||'').localeCompare(a.fecha||''); })[0];
+    if (ped0) {
+      var dias0 = Math.floor((new Date()-new Date(ped0.fecha||''))/(1000*60*60*24));
+      if (dias0 > WORKIN_ACTIVAR_LIMITE) { showAlert('❌ La ventana de 30 días para activar WorkIn ha vencido. Contacta al administrador.','err'); return; }
+    }
+  }
   if (!confirm('¿Activar WorkIn '+af.pkg+' por 90 días?\n\nGanarás '+fmt(pk.price*WORKIN_REND)+'/mes durante 3 meses.\nAl día 90 recibes tus goteros.\n\n¡No retirable hasta cumplir el plazo!')) return;
 
   var hoy = new Date().toISOString();
