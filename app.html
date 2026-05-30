@@ -6000,7 +6000,7 @@ function mostrarPantallaCliente(codigoVendedor) {
 function cargarProductosCliente() {
   var wrap = el('cli-productos-wrap');
   sbGet('productos', '?visible=eq.true&order=price.asc').then(function(rows) {
-    var prods = (rows||[]).filter(function(p){ return p.stock > 0; });
+    var prods = (rows||[]).filter(function(p){ return p.stock > 0 && p.cat !== 'paquete'; });
     if (!prods.length) {
       wrap.innerHTML = '<div style="background:var(--al);border-radius:var(--r);padding:1rem;font-size:.85rem;color:#92400e;text-align:center">⚠️ No hay productos disponibles en este momento.</div>';
       return;
