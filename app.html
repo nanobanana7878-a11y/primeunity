@@ -4347,19 +4347,9 @@ function addCart(id){
       abrirPopupCompraPaquete(p);
       return;
     } else {
-      // Primera compra — agregar directo al carrito con metadatos
-      var rngProd = p.rangoMin || detectRangoFromTotal(p.price);
-      if (!rngProd) { showAlert('Este paquete no tiene rango configurado.','err'); return; }
-      cart = []; // carrito limpio para pedido de paquete
-      cart.push({
-        id:p.id, code:p.code, name:p.name, price:p.price,
-        qty:1, ico:p.ico, fotos:p.fotos||[],
-        _pkg: rngProd, _pkgName: rngProd,
-        _tipoCompra: 'paquete', _saldoPaquete: false
-      });
-      updateCartUI();
-      showAlert('📦 Paquete '+rngProd+' agregado. Ve al carrito para pagar.','suc');
-      setTimeout(function(){ toggleCart(); }, 500);
+      // Primera compra — mostrar popup igual que afiliado con paquete
+      // para que el afiliado/promotor elija sus productos con el saldo
+      abrirPopupCompraPaquete(p);
       return;
     }
   }
