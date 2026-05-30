@@ -6132,6 +6132,8 @@ function enviarPedidoCliente() {
   var dir = el('cli-dir').value.trim();
   el('cli-err').style.display = 'none';
 
+  var totalUnids = _cliCarrito.reduce(function(s,x){return s+x.qty;},0);
+  if (!totalUnids) { showErr('cli-err','❌ Selecciona al menos un producto.'); return; }
   if (!nombre || !tel || !dir) { showErr('cli-err','❌ Completa todos tus datos.'); return; }
   if (!VENDEDOR_REF) { showErr('cli-err','❌ Enlace inválido. Pide al vendedor su enlace de nuevo.'); return; }
 
@@ -6172,7 +6174,7 @@ function enviarPedidoCliente() {
   sbPost('pedidos', pedido).then(function(){
     return sbPost('actividad', {
       tipo:'pedido',
-      txt:'🛒 Nuevo pedido de cliente — '+cant+' producto(s) · vendedor: '+VENDEDOR_REF,
+      txt:'🛒 Nuevo pedido de cliente — '+itemsCarrito.reduce(function(s,x){return s+x.qty;},0)+' producto(s) · vendedor: '+VENDEDOR_REF,
       fecha: today
     });
   }).then(function(){
@@ -6180,7 +6182,8 @@ function enviarPedidoCliente() {
     el('cli-err').innerHTML = '✅ <strong>¡Pedido recibido!</strong> Te contactaremos por WhatsApp al '+tel+' para coordinar el pago y el envío. ¡Gracias!';
     // Limpiar formulario
     ['cli-nombre','cli-tel','cli-dir'].forEach(function(f){var x=el(f);if(x)x.value='';});
-    el('cli-cant').value = '1';
+    // Resetear carrito
+    _cliCarrito.forEach(function(x){ x.qty=0; var el2=el('cli-qty-'+x.prodId); if(el2) el2.textContent='0'; });
     actualizarTotalCliente();
     // Limpiar referido del sessionStorage — pedido completado
     try { sessionStorage.removeItem('oxivision_ref'); } catch(e){}
