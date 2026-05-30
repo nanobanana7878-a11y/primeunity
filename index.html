@@ -172,13 +172,64 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
 
 /* RESPONSIVE */
 @media(max-width:768px){
+  /* Nav */
+  nav{padding:.75rem 1rem}
+  .nav-links{display:none}
+  .nav-cta{font-size:.8rem;padding:.5rem 1rem}
+
+  /* Hero */
   .hero-inner,.japan-grid,.plan-intro{grid-template-columns:1fr;gap:2rem}
   .hero-logo{order:-1}
-  .stats-grid{grid-template-columns:repeat(2,1fr)}
-  .drop-steps{grid-template-columns:repeat(2,1fr)}
+  section{padding:4rem 1.25rem}
+
+  /* Stats */
+  .stats-grid{grid-template-columns:repeat(2,1fr);gap:.75rem}
+
+  /* Steps */
+  .drop-steps{grid-template-columns:1fr}
   .drop-steps::before{display:none}
+
+  /* Levels */
   .levels-grid{grid-template-columns:1fr}
-  .nav-links{display:none}
+
+  /* Plan table - scroll horizontal */
+  .plan-table{font-size:.78rem}
+  .plan-table th,.plan-table td{padding:.6rem .5rem}
+
+  /* Japan visual */
+  .japan-visual{margin-top:0}
+  .japan-card-big{padding:1.5rem}
+
+  /* WorkIn steps */
+  [style*="grid-template-columns:repeat(auto-fit,minmax(280px"]{grid-template-columns:1fr!important}
+
+  /* WorkIn simulator pkg buttons */
+  #wi-pkgs{grid-template-columns:repeat(2,1fr)!important}
+
+  /* Counter sub-cards */
+  [id="cnt-diamante"],[id="cnt-paises"],[id="cnt-pagos"]{font-size:2rem}
+
+  /* WorkIn table */
+  table[style]{font-size:.75rem}
+  table[style] th,table[style] td{padding:.5rem .4rem!important}
+
+  /* CTA section */
+  .cta-section{padding:5rem 1.25rem}
+
+  /* Workin results grid */
+  [id="wi-mes"],[id="wi-total"],[id="wi-inv"],[id="wi-prod"]{font-size:1.5rem!important}
+
+  /* Counter main number */
+  .counter-num{font-size:5rem!important}
+}
+
+@media(max-width:480px){
+  /* Extra small - iPhones SE etc */
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .drop-steps{grid-template-columns:1fr}
+  #wi-pkgs{grid-template-columns:repeat(2,1fr)!important}
+  .plan-table{font-size:.7rem}
+  .plan-table th,.plan-table td{padding:.5rem .35rem}
 }
 
 /* SCROLL ANIMATIONS */
@@ -196,7 +247,7 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
     <a href="#plan">Plan MLM</a>
     <a href="#uninivel">Red</a>
   </div>
-  <a href="https://nanobanana7878-a11y.github.io/primeunity/app_36.html?registro=1" class="nav-cta">Únete Gratis</a>
+  <a href="app.html?registro=1" class="nav-cta">Únete Gratis</a>
 </nav>
 
 <!-- HERO -->
@@ -217,7 +268,7 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
         <strong>PrimeUnity</strong> es una empresa japonesa de clase mundial que llega a Venezuela con un plan de uninivel único en su género. Compra a <strong>precios bajos, vende, y genera ingresos reales</strong> desde el primer día.
       </p>
       <div class="hero-btns">
-        <a href="https://nanobanana7878-a11y.github.io/primeunity/app_36.html?registro=1" class="btn-primary">🚀 Comenzar ahora</a>
+        <a href="app.html?registro=1" class="btn-primary">🚀 Comenzar ahora</a>
         <a href="#plan" class="btn-secondary">Ver el plan →</a>
       </div>
     </div>
@@ -876,7 +927,7 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
       <h2 class="cta-title">¿Listo para <span class="grad-text">cambiar tu vida</span>?</h2>
       <p class="cta-sub">Únete hoy mismo a PrimeUnity. Regístrate gratis como Promotor o invierte en tu paquete MLM y empieza a generar ingresos reales desde Venezuela.</p>
       <div class="cta-btns">
-        <a href="https://nanobanana7878-a11y.github.io/primeunity/app_36.html?registro=1" class="cta-big-btn">🚀 Registrarme gratis ahora</a>
+        <a href="app.html?registro=1" class="cta-big-btn">🚀 Registrarme gratis ahora</a>
       </div>
       <p style="margin-top:1.5rem;font-size:.8rem;color:rgba(255,255,255,.3)">Sin tarjeta de crédito · Sin compromisos · 100% gratis para empezar</p>
     </div>
