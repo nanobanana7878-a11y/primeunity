@@ -3202,8 +3202,131 @@ function _doApproveOrd(id) {
 
   Promise.all(updates)
     .then(function(){return loadAdmin();})
-    .then(function(){ buildTabs(); renderAdmPedidos(); hideLoading(); showAlert('✅ Aprobado. Rango: '+newPkg+(comLogs.length?' | Coms: '+comLogs.join(', '):''),'suc'); })
+    .then(function(){
+      buildTabs(); renderAdmPedidos(); hideLoading();
+      showAlert('✅ Aprobado. Rango: '+newPkg+(comLogs.length?' | Coms: '+comLogs.join(', '):''),'suc');
+      // Abrir modal de asignación de productos para el afiliado
+      var pkNew2 = RANGOS[newPkg]||{};
+      var saldoPaq = pkNew2.price || 0;
+      if (saldoPaq > 0) {
+        setTimeout(function(){
+          _adminAsignarProductos(af.id, af.nombre+' '+af.apellido, newPkg, saldoPaq, id);
+        }, 600);
+      }
+    })
     .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); console.error(e); });
+}
+
+// ── Admin: asignar productos del paquete al afiliado ──
+function _adminAsignarProductos(afilId, afilNombre, pkgName, saldo, pedidoId) {
+  var pkData = RANGOS[pkgName]||{};
+  var prods = C.productos.filter(function(p){ return p.visible && p.stock > 0 && p.cat !== 'paquete' && p.cat !== 'recompra'; });
+  if (!prods.length) { showAlert('Sin productos disponibles para asignar.','inf'); return; }
+
+  var html = '<div style="background:linear-gradient(135deg,#1e3a5f,#065f46);border-radius:12px;padding:1rem;margin-bottom:1rem;color:#fff">'
+    + '<div style="font-weight:800;font-size:1rem">📦 Asignar productos — '+afilNombre+'</div>'
+    + '<div style="font-size:.8rem;opacity:.85;margin-top:.25rem">Paquete: '+pkgName+' · Saldo disponible: <strong id="adm-sp-resto">$'+saldo.toFixed(2)+'</strong></div>'
+    + '</div>';
+
+  html += '<div id="adm-sp-grid" style="display:flex;flex-direction:column;gap:.5rem">';
+  prods.forEach(function(p) {
+    html += '<div style="display:flex;align-items:center;gap:.75rem;background:var(--g50);border:1px solid var(--g200);border-radius:var(--r);padding:.75rem">'
+      + '<div style="font-size:1.4rem">'+(p.ico||'📦')+'</div>'
+      + '<div style="flex:1"><div style="font-weight:700;font-size:.85rem">'+p.name+'</div>'
+      + '<div style="font-size:.72rem;color:var(--g500)">$'+p.price+' c/u · stock: '+p.stock+'</div></div>'
+      + '<div style="display:flex;align-items:center;gap:.4rem">'
+      + '<button onclick="admSpAjustar(''+p.id+'','+p.price+',-1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--g200);background:#fff;cursor:pointer;font-size:.9rem">−</button>'
+      + '<span id="adm-sp-qty-'+p.id+'" style="font-weight:700;min-width:18px;text-align:center">0</span>'
+      + '<button onclick="admSpAjustar(''+p.id+'','+p.price+',1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--b5);background:var(--b1);color:var(--b6);cursor:pointer;font-size:.9rem">+</button>'
+      + '</div></div>';
+  });
+  html += '</div>';
+  html += '<div id="adm-sp-warn" style="color:var(--red);font-size:.78rem;margin-top:.5rem;display:none">⚠️ Saldo insuficiente</div>';
+  html += '<div class="mact" style="margin-top:1rem">'
+    + '<button class="btn bgh" onclick="closeM('m-adm-asignar')">Omitir por ahora</button>'
+    + '<button class="btn bb" onclick="admSpConfirmar(''+afilId+'',''+afilNombre+'',''+pkgName+'','+saldo+',''+pedidoId+'')">💾 Guardar asignación</button>'
+    + '</div>';
+
+  // Crear modal temporal si no existe
+  var m = el('m-adm-asignar');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'm-adm-asignar';
+    m.className = 'mbg';
+    m.innerHTML = '<div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto"><div id="adm-asignar-body"></div></div>';
+    document.body.appendChild(m);
+  }
+  el('adm-asignar-body').innerHTML = html;
+
+  // Estado interno
+  window._admSpSaldo = saldo;
+  window._admSpItems = {};
+  prods.forEach(function(p){ window._admSpItems[p.id] = { name:p.name, price:p.price, qty:0, ico:p.ico||'📦' }; });
+
+  openM('m-adm-asignar');
+}
+
+function admSpAjustar(prodId, price, delta) {
+  var items = window._admSpItems || {};
+  var item = items[prodId];
+  if (!item) return;
+  var usado = Object.values(items).reduce(function(s,x){return s+(x.qty*x.price);},0);
+  var resto = window._admSpSaldo - usado;
+  if (delta > 0 && price > resto + 0.01) {
+    el('adm-sp-warn').style.display = 'block';
+    setTimeout(function(){ el('adm-sp-warn').style.display='none'; }, 2000);
+    return;
+  }
+  item.qty = Math.max(0, item.qty + delta);
+  var el2 = el('adm-sp-qty-'+prodId);
+  if (el2) el2.textContent = item.qty;
+  var usadoNuevo = Object.values(items).reduce(function(s,x){return s+(x.qty*x.price);},0);
+  var restoNuevo = window._admSpSaldo - usadoNuevo;
+  var elResto = el('adm-sp-resto');
+  if (elResto) elResto.textContent = '$'+restoNuevo.toFixed(2);
+}
+
+function admSpConfirmar(afilId, afilNombre, pkgName, saldo, pedidoId) {
+  var items = window._admSpItems || {};
+  var seleccionados = Object.keys(items).filter(function(k){return items[k].qty>0;}).map(function(k){
+    return { prodId:k, name:items[k].name, qty:items[k].qty, price:items[k].price, ico:items[k].ico };
+  });
+  if (!seleccionados.length) { showAlert('Selecciona al menos un producto.','err'); return; }
+  var totalUsado = seleccionados.reduce(function(s,x){return s+(x.qty*x.price);},0);
+  var today = new Date().toISOString().slice(0,10);
+
+  showLoading('Guardando asignación...');
+  var updates = [];
+
+  // Guardar items en el pedido
+  updates.push(sbPatch('pedidos', {
+    items: seleccionados.map(function(x){ return { prodId:x.prodId, name:x.name, qty:x.qty, price:x.price }; }),
+    total: totalUsado
+  }, '?id=eq.'+pedidoId));
+
+  // Reducir stock de cada producto asignado
+  seleccionados.forEach(function(x){
+    var prod = C.productos.filter(function(p){return p.id===x.prodId;})[0];
+    if (prod && prod.stock < 999) {
+      updates.push(sbPatch('productos', {stock: Math.max(0, prod.stock - x.qty)}, '?id=eq.'+x.prodId));
+    }
+  });
+
+  updates.push(sbPost('actividad', {
+    tipo:'asignacion',
+    txt:'📦 Productos asignados a '+afilNombre+' ('+pkgName+'): '+seleccionados.map(function(x){return x.qty+'x '+x.name;}).join(', '),
+    fecha: today
+  }));
+
+  Promise.all(updates)
+    .then(function(){ return loadAdmin(); })
+    .then(function(){
+      closeM('m-adm-asignar');
+      renderAdmPedidos();
+      hideLoading();
+      showAlert('✅ Productos asignados: '+seleccionados.map(function(x){return x.qty+'x '+x.name;}).join(', '),'suc');
+    })
+    .catch(function(e){ hideLoading(); showAlert('Error: '+(e.message||e),'err'); });
 }
 
 // Editar rango de un pedido manualmente (para pedidos sin pkg_pedido)
