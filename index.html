@@ -287,12 +287,12 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
           <p>Convenio bilateral · Importación al mayor · Sin intermediarios · Calidad certificada</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1.25rem">
             <div style="background:rgba(255,184,0,.08);border:1px solid rgba(255,184,0,.15);border-radius:10px;padding:.75rem;text-align:center">
-              <div style="font-size:1.4rem;font-weight:800;color:#FFB800">-60%</div>
-              <div style="font-size:.7rem;color:rgba(255,255,255,.5)">vs precio retail</div>
+              <div style="font-size:1.4rem;font-weight:800;color:#FFB800">60%</div>
+              <div style="font-size:.7rem;color:rgba(255,255,255,.5)">se reparte a la red</div>
             </div>
             <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.15);border-radius:10px;padding:.75rem;text-align:center">
-              <div style="font-size:1.4rem;font-weight:800;color:#10B981">$15</div>
-              <div style="font-size:.7rem;color:rgba(255,255,255,.5)">precio al público</div>
+              <div style="font-size:1.4rem;font-weight:800;color:#10B981">TÚ</div>
+              <div style="font-size:.7rem;color:rgba(255,255,255,.5)">decides cuánto ganar</div>
             </div>
           </div>
         </div>
@@ -300,6 +300,119 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
     </div>
   </div>
 </section>
+
+</section>
+
+<!-- CONTADOR ANIMADO -->
+<section style="padding:5rem 2rem;background:linear-gradient(135deg,#050508,#0a1628,#050508);position:relative;overflow:hidden">
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(255,184,0,.08) 0%,transparent 60%)"></div>
+  <!-- Partículas decorativas -->
+  <div style="position:absolute;top:20%;left:5%;width:6px;height:6px;background:#FFB800;border-radius:50%;opacity:.4;animation:float1 3s ease-in-out infinite"></div>
+  <div style="position:absolute;top:60%;right:8%;width:4px;height:4px;background:#10b981;border-radius:50%;opacity:.5;animation:float2 4s ease-in-out infinite"></div>
+  <div style="position:absolute;top:40%;left:15%;width:3px;height:3px;background:#5BA4CF;border-radius:50%;opacity:.3;animation:float1 5s ease-in-out infinite"></div>
+  <style>
+    @keyframes float1{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+    @keyframes float2{0%,100%{transform:translateY(0)}50%{transform:translateY(10px)}}
+    @keyframes pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.8);opacity:0}}
+    .counter-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(4rem,10vw,8rem);line-height:1;background:linear-gradient(135deg,#FFB800,#ff8c00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .live-dot{width:12px;height:12px;background:#10b981;border-radius:50%;display:inline-block;position:relative;margin-right:.5rem}
+    .live-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;background:#10b981;animation:pulse-ring 1.5s ease-out infinite}
+  </style>
+
+  <div style="max-width:900px;margin:0 auto;text-align:center;position:relative;z-index:1">
+    <div style="display:inline-flex;align-items:center;gap:.5rem;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:100px;padding:.4rem 1.2rem;margin-bottom:2rem">
+      <span class="live-dot"></span>
+      <span style="color:#10b981;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em">En vivo · Actualizando</span>
+    </div>
+
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(1.8rem,4vw,2.8rem);color:rgba(255,255,255,.7);margin-bottom:.5rem;letter-spacing:.02em">AFILIADOS ACTIVOS EN PRIMEUNITY</h2>
+
+    <div style="display:flex;align-items:flex-end;justify-content:center;gap:.5rem;margin:1rem 0 .5rem">
+      <div class="counter-num" id="main-counter">0</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,5vw,4rem);color:rgba(255,184,0,.6);margin-bottom:.8rem">+</div>
+    </div>
+
+    <p style="color:rgba(255,255,255,.45);font-size:1rem;margin-bottom:3rem">distribuidores creciendo con nosotros en Venezuela</p>
+
+    <!-- Sub-contadores -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem;max-width:700px;margin:0 auto 3rem">
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:1.5rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:#5BA4CF" id="cnt-diamante">0</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.25rem">💎 Afiliados Diamante</div>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:1.5rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:#10B981" id="cnt-paises">0</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.25rem">🌎 Ciudades activas</div>
+      </div>
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:1.5rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:#FFB800" id="cnt-pagos">$0</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,.4);margin-top:.25rem">💰 Pagado a la red</div>
+      </div>
+    </div>
+
+    <!-- Barra de crecimiento -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:1.5rem 2rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+        <span style="color:rgba(255,255,255,.5);font-size:.82rem">Meta del mes — 500 afiliados</span>
+        <span style="color:#FFB800;font-weight:700;font-size:.9rem" id="cnt-pct">0%</span>
+      </div>
+      <div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden">
+        <div id="cnt-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#FFB800,#ff8c00);border-radius:4px;transition:width 2s ease"></div>
+      </div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.25);margin-top:.5rem">¡Únete antes de que se llene el cupo!</div>
+    </div>
+  </div>
+</section>
+
+<script>
+// Contador animado de afiliados - valores ficticios que crecen
+(function(){
+  var TARGET = 347; // número base de afiliados
+  var current = 0;
+  var started = false;
+
+  function animateCount(el, target, prefix, duration) {
+    var start = 0, step = target / (duration/16);
+    var timer = setInterval(function(){
+      start = Math.min(start + step, target);
+      el.textContent = prefix + Math.floor(start).toLocaleString();
+      if (start >= target) clearInterval(timer);
+    }, 16);
+  }
+
+  function startCounters() {
+    if (started) return;
+    started = true;
+    animateCount(document.getElementById('main-counter'), TARGET, '', 2500);
+    animateCount(document.getElementById('cnt-diamante'), 28, '', 2000);
+    animateCount(document.getElementById('cnt-paises'), 12, '', 1800);
+    animateCount(document.getElementById('cnt-pagos'), 8400, '$', 2200);
+    // Barra de progreso
+    setTimeout(function(){
+      var pct = Math.round((TARGET/500)*100);
+      document.getElementById('cnt-bar').style.width = pct + '%';
+      document.getElementById('cnt-pct').textContent = pct + '%';
+    }, 300);
+  }
+
+  // Observar cuando el elemento sea visible
+  var obs = new IntersectionObserver(function(entries){
+    if (entries[0].isIntersecting) { startCounters(); obs.disconnect(); }
+  }, {threshold: 0.3});
+  obs.observe(document.getElementById('main-counter'));
+
+  // Auto-incrementar lentamente (simula crecimiento en tiempo real)
+  setInterval(function(){
+    if (!started) return;
+    var el = document.getElementById('main-counter');
+    var val = parseInt(el.textContent.replace(/,/g,'')) || TARGET;
+    if (Math.random() > 0.7) { // 30% de probabilidad cada 3 seg
+      val++;
+      el.textContent = val.toLocaleString();
+    }
+  }, 3000);
+})();
+</script>
 
 <!-- DROPSHIPPING -->
 <section class="drop" id="dropshipping">
