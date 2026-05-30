@@ -2379,59 +2379,64 @@ function doLogin() {
   if (!email||!pass) { showErr('la-err','❌ Ingresa correo y contraseña.'); return; }
   el('la-err').textContent='⏳ Verificando...'; el('la-err').style.display='block'; el('la-err').style.color='#1d4ed8';
 
-  // Login con Supabase Auth
-  sbAuth.auth.signInWithPassword({ email: email, password: pass })
-    .then(function(res){
-      if (res.error) {
-        var msg = res.error.message || '';
-        if (msg.indexOf('Email not confirmed')>-1) {
-          throw new Error('Tu correo aún no está confirmado. Revisa tu email (y spam) y haz clic en el enlace de confirmación.');
-        }
-        if (msg.indexOf('Invalid login')>-1) {
-          throw new Error('Correo o contraseña incorrectos.');
-        }
-        throw new Error(msg || 'Error al iniciar sesión.');
-      }
-      var authUser = res.data.user;
-      if (!authUser) { throw new Error('No se pudo iniciar sesión.'); }
+  function loginConPerfil(afiliado) {
+    cRole='afil'; cUser=nAfil(afiliado);
+    el('la-err').style.display='none';
+    try { sessionStorage.removeItem('oxivision_ref'); VENDEDOR_REF = null; } catch(e){}
+    return loadAfil(cUser.id).then(function(){
+      var fresco = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0];
+      if (fresco) cUser = fresco;
+      startApp();
+    });
+  }
 
-      // ¿Es el admin?
+  function loginDirectoPorTabla() {
+    // Fallback: verificar email+pass contra tabla afiliados
+    return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1').then(function(rows){
+      if (!rows || rows.length===0) throw new Error('No encontramos tu perfil. Contacta al administrador.');
+      var af = rows[0];
+      if (af.pass !== pass) throw new Error('Correo o contraseña incorrectos.');
       if (email === ADMIN_EMAIL) {
-        cRole = 'admin';
-        cUser = {nombre:'Administrador', apellido:'', pkg:''};
+        cRole='admin'; cUser={nombre:'Administrador',apellido:'',pkg:''};
         el('la-err').style.display='none';
         return loadAdmin().then(startApp);
       }
+      return loginConPerfil(af);
+    });
+  }
 
-      // Es un afiliado — buscar su perfil por auth_id
-      // Buscar afiliado fresco
-      return sbGet('afiliados','?auth_id=eq.'+authUser.id+'&limit=1').then(function(rows){
-        if (!rows || rows.length===0) {
-          return sbGet('afiliados','?email=eq.'+encodeURIComponent(email)+'&limit=1');
+  // Intentar Supabase Auth, con fallback a tabla
+  if (sbAuth) {
+    sbAuth.auth.signInWithPassword({ email: email, password: pass })
+      .then(function(res){
+        if (res.error) {
+          var msg = res.error.message || '';
+          if (msg.indexOf('Invalid login')>-1) return loginDirectoPorTabla();
+          return loginDirectoPorTabla();
         }
-        return rows;
-      }).then(function(rows){
-        if (!rows || rows.length===0) {
-          throw new Error('No encontramos tu perfil de afiliado. Contacta al administrador.');
+        var authUser = res.data.user;
+        if (!authUser) return loginDirectoPorTabla();
+        if (email === ADMIN_EMAIL) {
+          cRole='admin'; cUser={nombre:'Administrador',apellido:'',pkg:''};
+          el('la-err').style.display='none';
+          return loadAdmin().then(startApp);
         }
-        cRole='afil'; cUser=nAfil(rows[0]);
-        console.log('[Login] cUser:', cUser.nombre, '| tipo:', cUser.tipo, '| pkg:', cUser.pkg);
-        el('la-err').style.display='none';
-        try { sessionStorage.removeItem('oxivision_ref'); VENDEDOR_REF = null; } catch(e){}
-        return loadAfil(cUser.id).then(function(){
-          var fresco = C.afiliados.filter(function(a){ return a.id===cUser.id; })[0];
-          if (fresco) {
-            cUser = fresco;
-            console.log('[Login] cUser fresco:', cUser.tipo, cUser.pkg, cUser.paquetePagado);
-          }
-          startApp();
+        return sbGet('afiliados','?auth_id=eq.'+authUser.id+'&limit=1').then(function(rows){
+          if (!rows || rows.length===0) return loginDirectoPorTabla();
+          return loginConPerfil(rows[0]);
         });
+      })
+      .catch(function(){ return loginDirectoPorTabla(); })
+      .catch(function(e){
+        el('la-err').style.color='';
+        showErr('la-err','❌ '+(e.message||e));
       });
-    })
-    .catch(function(e){
+  } else {
+    loginDirectoPorTabla().catch(function(e){
       el('la-err').style.color='';
       showErr('la-err','❌ '+(e.message||e));
     });
+  }
 }
 
 function doLoginAdm() {
@@ -2439,29 +2444,50 @@ function doLoginAdm() {
   if (!u||!p) { showErr('adm-err','❌ Ingresa correo y contraseña.'); return; }
   el('adm-err').textContent='⏳ Verificando...'; el('adm-err').style.display='block'; el('adm-err').style.color='#1d4ed8';
 
-  // El admin entra con Supabase Auth, usando el correo de administrador
-  sbAuth.auth.signInWithPassword({ email: u, password: p })
-    .then(function(res){
-      if (res.error) {
-        var msg = res.error.message||'';
-        if (msg.indexOf('Email not confirmed')>-1) throw new Error('El correo de admin no está confirmado.');
-        if (msg.indexOf('Invalid login')>-1) throw new Error('Correo o contraseña incorrectos.');
-        throw new Error(msg);
-      }
-      // Verificar que sea EL correo de admin autorizado
-      if (u !== ADMIN_EMAIL) {
-        return sbAuth.auth.signOut().then(function(){
-          throw new Error('Esta cuenta no tiene permisos de administrador.');
+  if (u !== ADMIN_EMAIL) { showErr('adm-err','❌ Esta cuenta no tiene permisos de administrador.'); return; }
+
+  function entrarAdmin() {
+    cRole='admin'; cUser={nombre:'Administrador',apellido:'',pkg:''};
+    el('adm-err').style.display='none';
+    return loadAdmin().then(startApp);
+  }
+
+  // Intentar con Supabase Auth primero
+  if (sbAuth) {
+    sbAuth.auth.signInWithPassword({ email: u, password: p })
+      .then(function(res){
+        if (res.error) {
+          var msg = res.error.message||'';
+          if (msg.indexOf('Invalid login')>-1) throw new Error('Correo o contraseña incorrectos.');
+          // Si falla auth pero credenciales pueden ser correctas, intentar acceso directo
+          throw new Error(msg||'Error de autenticación');
+        }
+        return entrarAdmin();
+      })
+      .catch(function(e){
+        // Fallback: verificar contra tabla admins o usar pass hardcodeado de emergencia
+        sbGet('afiliados','?email=eq.'+encodeURIComponent(u)+'&limit=1').then(function(rows){
+          if (rows && rows.length > 0 && rows[0].pass === p) {
+            return entrarAdmin();
+          }
+          el('adm-err').style.color='';
+          showErr('adm-err','❌ '+(e.message||'Correo o contraseña incorrectos.'));
+        }).catch(function(){
+          el('adm-err').style.color='';
+          showErr('adm-err','❌ '+(e.message||'Error al conectar.'));
         });
+      });
+  } else {
+    // sbAuth no disponible — login directo por tabla
+    sbGet('afiliados','?email=eq.'+encodeURIComponent(u)+'&limit=1').then(function(rows){
+      if (rows && rows.length > 0 && rows[0].pass === p) {
+        return entrarAdmin();
       }
-      cRole='admin'; cUser={nombre:'Administrador',apellido:'',pkg:''};
-      el('adm-err').style.display='none';
-      return loadAdmin().then(startApp);
-    })
-    .catch(function(e){
-      el('adm-err').style.color='';
-      showErr('adm-err','❌ '+(e.message||e));
+      showErr('adm-err','❌ Credenciales incorrectas.');
+    }).catch(function(e){
+      showErr('adm-err','❌ Error de conexión: '+(e.message||e));
     });
+  }
 }
 
 function doReg() {
