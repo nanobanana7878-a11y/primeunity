@@ -886,19 +886,19 @@ document.querySelectorAll('.reveal').forEach(function(el){ obsLanding.observe(el
   <div class="llogo">
     <div style="font-size:2.5rem">💧</div>
     <h1>PrimeUnity™</h1>
-    <p>Gotero Ocular · Fórmula Japonesa 15ml</p>
+    <p>Conecta · Crece · Trasciende</p>
   </div>
 
   <div id="cli-vendedor-info" style="background:var(--b0);border:1px solid var(--b1);border-radius:var(--r);padding:.7rem 1rem;margin-bottom:1rem;font-size:.82rem;color:var(--b6);text-align:center"></div>
 
   <div style="background:var(--g100);border-radius:var(--r);padding:1rem;margin-bottom:1rem;text-align:center">
-    <div style="font-size:.8rem;color:var(--g500)">Precio por gotero</div>
+    <div style="font-size:.8rem;color:var(--g500)">Precio por producto</div>
     <div style="font-size:1.8rem;font-weight:800;color:var(--g800)">$15</div>
     <div style="font-size:.72rem;color:var(--g400)">El envío se calcula y se paga aparte</div>
   </div>
 
   <div class="fg">
-    <label>¿Cuántos goteros quieres?</label>
+    <label>¿Cuántos productos quieres?</label>
     <input type="number" id="cli-cant" value="1" min="1" max="50">
   </div>
   <div class="fg"><label>Tu nombre completo *</label><input type="text" id="cli-nombre" placeholder="Nombre y apellido"></div>
@@ -915,7 +915,7 @@ document.querySelectorAll('.reveal').forEach(function(el){ obsLanding.observe(el
 
   <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--g200);text-align:center">
     <p style="font-size:.85rem;color:var(--g600);font-weight:600;margin-bottom:.5rem">💼 ¿Quieres GANAR dinero vendi​endo PrimeUnity?</p>
-    <p style="font-size:.78rem;color:var(--g500);margin-bottom:.7rem">Únete gratis como promotor y gana $5 por cada gotero que vendas.</p>
+    <p style="font-size:.78rem;color:var(--g500);margin-bottom:.7rem">Únete gratis como promotor y gana comisión por cada producto que vendas.</p>
     <button class="btn bo" onclick="irARegistroPromotor()" style="width:100%">Quiero ser Promotor →</button>
   </div>
 </div>
@@ -1039,7 +1039,7 @@ document.querySelectorAll('.reveal').forEach(function(el){ obsLanding.observe(el
       <div class="sec-hd"><h2 class="sec-ti">🏆 Bonos por metas — Promotores</h2></div>
       <div class="card">
         <p style="color:var(--g500);font-size:.85rem;margin-top:0">
-          Bono mensual por goteros vendidos. Revisa y aprueba el bono de cada promotor.
+          Bono mensual por productos vendidos. Revisa y aprueba el bono de cada promotor.
         </p>
         <div class="fg" style="max-width:200px">
           <label>Mes</label>
@@ -1193,7 +1193,7 @@ document.querySelectorAll('.reveal').forEach(function(el){ obsLanding.observe(el
         <h3 style="margin-top:0">🚀 Empieza a vender</h3>
         <p style="color:var(--g500);font-size:.9rem;line-height:1.6">
           Comparte tu enlace personal. Cuando alguien compre por tu enlace, ganas
-          <strong>$5 por cada gotero</strong>. Nosotros enviamos el producto — tú solo vendes.
+          <strong>$5 por cada producto</strong>. Nosotros enviamos el producto — tú solo vendes.
         </p>
         <button class="btn bb" onclick="goSecById('sec-promo-enlace')">🔗 Ver mi enlace</button>
       </div>
@@ -1486,12 +1486,12 @@ var WALLETS = { usdt: 'TYourUSDTAddressHere', btc: 'bc1YourBTCAddressHere' };
 // Estructura: paquete grande de entrada, recompra menor (40% en goteros), bono 30%
 // price = goteros × $15 | bono = 30% del precio | recompra = gotRec × $15
 var RANGOS = {
-  'Bronce':    { price:60,   recompra:30,   goteros:4,   gotRec:2,   niveles:2,  bono:0,    n1activos:0, rangoAnt:null,        color:'#CD7F32', ico:'🥉', cls:'bronce' },
-  'Semilla':   { price:90,   recompra:30,   goteros:6,   gotRec:2,   niveles:3,  bono:27,   n1activos:3, rangoAnt:'Bronce',    color:'#8BC34A', ico:'🌱', cls:'semilla' },
-  'Plata':     { price:120,  recompra:45,   goteros:8,   gotRec:3,   niveles:4,  bono:36,   n1activos:3, rangoAnt:'Semilla',   color:'#B0B0B0', ico:'🥈', cls:'plata' },
-  'Oro':       { price:180,  recompra:75,   goteros:12,  gotRec:5,   niveles:5,  bono:54,   n1activos:3, rangoAnt:'Plata',     color:'#DAA520', ico:'🥇', cls:'oro' },
-  'Esmeralda': { price:300,  recompra:120,  goteros:20,  gotRec:8,   niveles:8,  bono:90,   n1activos:3, rangoAnt:'Oro',       color:'#10B981', ico:'💚', cls:'esmeralda' },
-  'Diamante':  { price:450,  recompra:180,  goteros:30,  gotRec:12,  niveles:10, bono:135,  n1activos:3, rangoAnt:'Esmeralda', color:'#5BA4CF', ico:'💎', cls:'diamante' }
+  'Bronce':    { price:60,   recompra:15,   productos:4,   prodRec:1,   niveles:2,  bono:0,    n1activos:0, rangoAnt:null,        color:'#CD7F32', ico:'🥉', cls:'bronce' },
+  'Semilla':   { price:90,   recompra:15,   productos:6,   prodRec:1,   niveles:3,  bono:27,   n1activos:3, rangoAnt:'Bronce',    color:'#8BC34A', ico:'🌱', cls:'semilla' },
+  'Plata':     { price:120,  recompra:30,   productos:8,   prodRec:2,   niveles:4,  bono:36,   n1activos:3, rangoAnt:'Semilla',   color:'#B0B0B0', ico:'🥈', cls:'plata' },
+  'Oro':       { price:180,  recompra:45,   productos:12,  prodRec:3,   niveles:5,  bono:54,   n1activos:3, rangoAnt:'Plata',     color:'#DAA520', ico:'🥇', cls:'oro' },
+  'Esmeralda': { price:300,  recompra:75,   productos:20,  prodRec:5,   niveles:8,  bono:90,   n1activos:3, rangoAnt:'Oro',       color:'#10B981', ico:'💚', cls:'esmeralda' },
+  'Diamante':  { price:450,  recompra:120,  productos:30,  prodRec:8,   niveles:10, bono:135,  n1activos:3, rangoAnt:'Esmeralda', color:'#5BA4CF', ico:'💎', cls:'diamante' }
 };
 
 // Comisiones uninivel — todos al 10% en N1-N5, 1% en N6-N10
@@ -1795,7 +1795,7 @@ function renderPromoPanel() {
   } else {
     bonoHtml += '<p style="font-size:.85rem;color:#C9A84C;margin-top:.5rem">🏆 ¡Eres Diamante! Alcanzaste el nivel máximo.</p>';
   }
-  bonoHtml += '<p style="font-size:.75rem;color:var(--g400);margin-top:.8rem">El bono se cuenta por goteros vendidos cada mes y lo aprueba la administración.</p>';
+  bonoHtml += '<p style="font-size:.75rem;color:var(--g400);margin-top:.8rem">El bono se cuenta por productos vendidos cada mes y lo aprueba la administración.</p>';
   bonoHtml += '</div>';
 
   // Tarjeta "Empieza a vender" + bono
@@ -1999,7 +1999,7 @@ function solicitarRetiroPromotor() {
 function renderPromoSubir() {
   el('promo-subir-body').innerHTML =
     '<p style="color:var(--g500);font-size:.92rem;line-height:1.7">'+
-    'Como <strong>Promotor</strong> ganas $5 por cada gotero que vendes. '+
+    'Como <strong>Promotor</strong> ganas $5 por cada producto que vendes. '+
     'Si quieres ganar MÁS, puedes convertirte en <strong>Afiliado MLM</strong>:</p>'+
     '<div style="background:var(--b0);border:1px solid var(--b1);border-radius:var(--r);padding:1rem;margin:1rem 0">'+
     '<div style="font-size:.88rem;line-height:1.9">'+
@@ -2091,6 +2091,11 @@ function rangoHTML(r) {
 function comAfil(a, nivel) {
   if (!a || !a.activo) return 0;
   var pk = RANGOS[a.pkg] || {};
+  // WorkIn activo = equivale a tener recompra al día para cobrar red
+  var tieneWorkinActivo = (a.workins||[]).some(function(w){ return w.estado==='activo'; });
+  var rc = C.recompras.filter(function(r){ return r.afilId===a.id && r.mes===thisMonth(); })[0];
+  var rcActiva = (rc && rc.pagado) || tieneWorkinActivo;
+  if (!rcActiva) return 0; // sin recompra ni WorkIn no cobra red
   return Math.round((pk.recompra||0) * (NCOM[nivel]||0) * 100) / 100;
 }
 
@@ -3174,6 +3179,10 @@ function _doApproveOrd(id) {
     if(!curAfil||!curAfil.patrocinador) break;
     var sponsor=C.afiliados.filter(function(a){return a.refCode===curAfil.patrocinador;})[0];
     if(!sponsor||!sponsor.activo) break;
+    // WorkIn activo = equivale a recompra para cobrar red
+    var spWorkin=(sponsor.workins||[]).some(function(w){return w.estado==='activo';});
+    var spRc=C.recompras.filter(function(r){return r.afilId===sponsor.id&&r.mes===today.slice(0,7);}).length>0;
+    if(!spRc&&!spWorkin&&sponsor.paquetePagado) { curAfil=sponsor; continue; }
     var pkSp=RANGOS[sponsor.pkg]||{};
     if(nivel<=(pkSp.niveles||1)){
       var pct=NCOM_ENT[nivel]||0, com=Math.round(baseComision*pct*100)/100;
@@ -3837,7 +3846,7 @@ function renderAfilPanel() {
   var workinActs = (af.workins||[]).filter(function(w){ return w.estado==='activo'; });
   var workinMes = workinActs.reduce(function(s,w){ return s+((RANGOS[w.rango]||{}).price||0)*0.20; },0);
   el('afil-kpis').innerHTML=
-    '<div class="kpi"><div class="klbl">Mi rango</div><div class="kval" style="color:'+(pk.color||'var(--b6)')+'">'+(pk.ico||'')+' '+af.pkg+'</div><div class="ksub">'+(pk.goteros||0)+' goteros · Hasta N'+(pk.niveles||1)+'</div></div>'+
+    '<div class="kpi"><div class="klbl">Mi rango</div><div class="kval" style="color:'+(pk.color||'var(--b6)')+'">'+(pk.ico||'')+' '+af.pkg+'</div><div class="ksub">'+(pk.productos||0)+' productos · Hasta N'+(pk.niveles||1)+'</div></div>'+
     '<div class="kpi" style="'+(workinActs.length?'border-color:#059669;':'')+'"><div class="klbl">⚡ WorkIn</div><div class="kval" style="color:#059669">'+fmt(workinMes)+'</div><div class="ksub">'+(workinActs.length?workinActs.length+' paq. activos · 20%/mes':'Sin paquetes activos')+'</div></div>'+
     '<div class="kpi" style="'+(comMesPend>0?'border-color:var(--amber);':'')+'"><div class="klbl">Ganado este mes</div><div class="kval green">'+fmt(comMesReal)+'</div><div class="ksub">'+fmt(comMesPag)+' pagado · '+fmt(comMesPend)+' por cobrar</div></div>'+
     '<div class="kpi"><div class="klbl">Proyección mensual</div><div class="kval blue">'+fmt(redCom+workinMes)+'</div><div class="ksub">red + WorkIn</div></div>'+
@@ -3959,7 +3968,7 @@ function buildPkgChooser(container) {
     var diffPrice=Math.max(0,r.price-(pkActual.price||0));
     var isUp=af2.paquetePagado&&r.price>(pkActual.price||0);
     var rngAntDesc = r.rangoAnt ? ' · Bono: 3 N1 '+(RANGOS[r.rangoAnt]||{}).ico+' '+r.rangoAnt : '';
-    var sub=r.goteros+' goteros · N1-N'+r.niveles+(r.bono>0?' · Bono $'+r.bono+'/mes'+rngAntDesc:' · Sin bono mensual')+(isUp?' · Diferencia: $'+diffPrice:'');
+    var sub=r.productos+' productos · N1-N'+r.niveles+(r.bono>0?' · Bono $'+r.bono+'/mes'+rngAntDesc:' · Sin bono mensual')+(isUp?' · Diferencia: $'+diffPrice:'');
     html+='<div class="pkg-opt" data-rng="'+rng+'" onclick="selPaquete(this.getAttribute(\'data-rng\'))"><div style="display:flex;align-items:center;gap:1rem"><div style="font-size:2rem">'+r.ico+'</div><div><div style="font-weight:700;font-size:1rem">'+rng+'</div><div style="font-size:.78rem;color:var(--g500)">'+sub+'</div></div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:1.4rem;font-weight:700;color:'+r.color+'">$'+r.price.toLocaleString()+'</div><div style="font-size:.72rem;color:var(--g400)">USD</div></div></div>';
   });
   html+='</div>';
@@ -4048,7 +4057,7 @@ function renderTienda() {
         '<div class="pbody">'+
         '<div style="margin-bottom:.35rem">'+estado+'</div>'+
         '<div class="pname">'+p.name+'</div>'+
-        '<div style="font-size:.75rem;color:var(--g500);margin:.2rem 0">'+(pkProd.goteros||0)+' goteros · '+( pkProd.bono>0?'Bono $'+pkProd.bono+'/mes':'Sin bono')+'</div>'+
+        '<div style="font-size:.75rem;color:var(--g500);margin:.2rem 0">'+(pkProd.productos||0)+' productos · '+( pkProd.bono>0?'Bono $'+pkProd.bono+'/mes':'Sin bono')+'</div>'+
         '<div class="pprice">'+fmt(p.price)+'</div>'+
         '</div>'+
         '<div class="pact">'+btnHtml+'</div>'+
@@ -4279,7 +4288,7 @@ function abrirPopupCompraPaquete(prod) {
     // Botón 1: Recompra mensual
     html += '<button class="btn bb" style="width:100%;margin-bottom:.75rem;padding:1rem;text-align:left;display:flex;justify-content:space-between;align-items:center" onclick="elegirCompra(\''+prod.id+'\',\'recompra\')">'+
       '<div><div style="font-weight:700;font-size:.9rem">🔄 Recompra mensual</div>'+
-      '<div style="font-size:.72rem;opacity:.9">Mantén tu rango activo este mes · '+(pkActual.gotRec||0)+' goteros</div></div>'+
+      '<div style="font-size:.72rem;opacity:.9">Mantén tu rango activo este mes · '+(pkActual.prodRec||0)+' productos</div></div>'+
       '<div style="font-size:1.1rem;font-weight:800">'+fmt(recompraMonto)+'</div>'+
       '</button>';
 
@@ -4287,7 +4296,7 @@ function abrirPopupCompraPaquete(prod) {
     if (numPaquetes < 5) {
       html += '<button class="btn bo" style="width:100%;padding:1rem;text-align:left;display:flex;justify-content:space-between;align-items:center" onclick="elegirCompra(\''+prod.id+'\',\'adicional\')">'+
         '<div><div style="font-weight:700;font-size:.9rem">📦 Paquete adicional #'+(numPaquetes+1)+'</div>'+
-        '<div style="font-size:.72rem;opacity:.8">Suma otro bono mensual de '+fmt(pkProd.bono||0)+' · '+(pkProd.goteros||0)+' goteros</div></div>'+
+        '<div style="font-size:.72rem;opacity:.8">Suma otro bono mensual de '+fmt(pkProd.bono||0)+' · '+(pkProd.productos||0)+' productos</div></div>'+
         '<div style="font-size:1.1rem;font-weight:800">'+fmt(paqMonto)+'</div>'+
         '</button>';
     } else {
@@ -5068,7 +5077,7 @@ function openUpgradePanel() {
       '<div style="display:flex;align-items:center;gap:1rem">'+
       '<div style="font-size:2rem">'+r.ico+'</div>'+
       '<div><div style="font-weight:700;font-size:1rem">'+rng+'</div>'+
-      '<div style="font-size:.78rem;color:var(--g500)">'+r.goteros+' goteros · hasta N'+r.niveles+(r.bono>0?' · Bono $'+r.bono+'/mes':'')+'</div>'+
+      '<div style="font-size:.78rem;color:var(--g500)">'+r.productos+' productos · hasta N'+r.niveles+(r.bono>0?' · Bono $'+r.bono+'/mes':'')+'</div>'+
       '</div></div>'+
       '<div style="text-align:right;flex-shrink:0">'+
       '<div style="font-size:1.4rem;font-weight:700;color:'+r.color+'">$'+r.price.toLocaleString()+'</div>'+
