@@ -6015,9 +6015,9 @@ function cargarProductosCliente() {
           + '<div style="font-weight:800;color:var(--b6);margin-top:.2rem">$'+p.price+'</div>'
         + '</div>'
         + '<div style="display:flex;align-items:center;gap:.4rem">'
-          + '<button onclick="cliAjustarQty(''+p.id+'', -1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--g200);background:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>'
+          + '<button data-id="'+p.id+'" data-d="-1" onclick="cliAjustarQty(this.dataset.id,parseInt(this.dataset.d))" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--g200);background:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">−</button>'
           + '<span id="cli-qty-'+p.id+'" style="font-weight:700;min-width:20px;text-align:center">0</span>'
-          + '<button onclick="cliAjustarQty(''+p.id+'', 1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--b5);background:var(--b1);color:var(--b6);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>'
+          + '<button data-id="'+p.id+'" data-d="1" onclick="cliAjustarQty(this.dataset.id,parseInt(this.dataset.d))" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--b5);background:var(--b1);color:var(--b6);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>'
         + '</div>'
         + '</div>';
       // Guardar datos del producto en el carrito interno
