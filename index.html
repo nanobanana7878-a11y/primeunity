@@ -921,6 +921,191 @@ footer p{font-size:.8rem;color:rgba(255,255,255,.3)}
   </div>
 </section>
 
+<!-- FEED DE PAGOS EN VIVO -->
+<section style="padding:6rem 2rem;background:linear-gradient(180deg,#050508,#080d18,#050508);position:relative;overflow:hidden">
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(16,185,129,.06) 0%,transparent 60%)"></div>
+  <div style="max-width:800px;margin:0 auto;position:relative;z-index:1">
+
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:3rem">
+      <div style="display:inline-flex;align-items:center;gap:.5rem;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:100px;padding:.4rem 1.2rem;margin-bottom:1.25rem">
+        <span style="width:8px;height:8px;background:#10b981;border-radius:50%;display:inline-block;animation:pulse-ring 1.5s ease-out infinite"></span>
+        <span style="color:#10b981;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em">Pagos en vivo</span>
+      </div>
+      <h2 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,5vw,3.5rem);color:#fff;margin-bottom:.75rem">La red trabaja<br><span style="background:linear-gradient(135deg,#10b981,#FFB800);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">tú cobras</span></h2>
+      <p style="color:rgba(255,255,255,.5);font-size:.95rem">Pagos reales enviados a nuestra red de distribuidores</p>
+    </div>
+
+    <!-- Feed container -->
+    <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;margin-bottom:1.5rem">
+      <!-- Header del chat -->
+      <div style="background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.07);padding:1rem 1.5rem;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#059669,#10b981);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem">💰</div>
+          <div>
+            <div style="color:#fff;font-weight:700;font-size:.9rem">PrimeUnity Pagos</div>
+            <div style="color:#10b981;font-size:.72rem;display:flex;align-items:center;gap:.3rem"><span style="width:6px;height:6px;background:#10b981;border-radius:50%;display:inline-block"></span>En línea · actualizando</div>
+          </div>
+        </div>
+        <div style="color:rgba(255,255,255,.3);font-size:.75rem" id="feed-count">0 pagos hoy</div>
+      </div>
+
+      <!-- Feed de mensajes -->
+      <div id="payment-feed" style="height:380px;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.6rem;scroll-behavior:smooth">
+      </div>
+    </div>
+
+    <!-- Input para agregar pago real -->
+    <div style="background:rgba(255,255,255,.03);border:1px solid rgba(16,185,129,.2);border-radius:16px;padding:1.25rem">
+      <div style="color:rgba(255,255,255,.5);font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem">➕ Agregar pago real</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:.75rem;align-items:end">
+        <div>
+          <label style="display:block;color:rgba(255,255,255,.4);font-size:.72rem;margin-bottom:.35rem">Nombre</label>
+          <input id="feed-nombre" type="text" placeholder="Ej: María G." style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.6rem .85rem;color:#fff;font-size:.875rem;outline:none;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="display:block;color:rgba(255,255,255,.4);font-size:.72rem;margin-bottom:.35rem">Monto recibido ($)</label>
+          <input id="feed-monto" type="number" placeholder="Ej: 45.00" min="1" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.6rem .85rem;color:#fff;font-size:.875rem;outline:none;box-sizing:border-box">
+        </div>
+        <button onclick="agregarPagoReal()" style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;border-radius:10px;padding:.65rem 1.25rem;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap">Publicar ✓</button>
+      </div>
+      <div style="margin-top:.75rem">
+        <label style="display:block;color:rgba(255,255,255,.4);font-size:.72rem;margin-bottom:.35rem">Mensaje (opcional)</label>
+        <input id="feed-msg" type="text" placeholder="Ej: Gracias PrimeUnity! Ya voy por mi segundo paquete 🔥" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:.6rem .85rem;color:#fff;font-size:.875rem;outline:none;box-sizing:border-box">
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function(){
+  var AVATARS = ['👩','👨','👩🏽','👨🏻','👩🏾','👴','👩🏿','🧑','👩🏼','👨🏾'];
+  var CIUDADES = ['Caracas','Valencia','Maracaibo','Barquisimeto','Mérida','Barcelona','Maracay','Maturín','San Cristóbal','Cumaná','Lechería','Guarenas'];
+  var RANGOS = ['🥉 Bronce','🌱 Semilla','🥈 Plata','🥇 Oro','💚 Esmeralda','💎 Diamante'];
+  var CONCEPTOS = [
+    'Comisión de red N1 💰',
+    'WorkIn mensual ⚡',
+    'Comisión entrada N2 🎯',
+    'Recompra de red 🔄',
+    'Comisión N3 🌐',
+    'WorkIn mes 2 ⚡',
+    'Bono de red activa 🏆',
+    'Comisión N1 directa 💸'
+  ];
+  var MENSAJES = [
+    '¡Gracias PrimeUnity! Ya van {monto} este mes 🔥',
+    'El sistema funciona solo mientras duermo 😴💰',
+    '¡Mi red me pagó hoy! {monto} en comisiones',
+    'Segundo mes consecutivo cobrando ✅',
+    'Recomendado 100% — {monto} recibidos hoy',
+    '¡Increíble! {monto} por mi WorkIn activo ⚡',
+    'Esto es real gente. {monto} en mi wallet 🙌',
+    '¡Mi equipo creció y yo cobré {monto}! 💎',
+    null, null // algunos sin mensaje
+  ];
+
+  var totalPagosHoy = 0;
+  var feedEl = document.getElementById('payment-feed');
+  var countEl = document.getElementById('feed-count');
+
+  function rnd(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function rndNum(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function fmt(n){ return '$'+parseFloat(n).toFixed(2); }
+
+  function crearMensaje(nombre, monto, concepto, mensaje, isReal) {
+    totalPagosHoy++;
+    countEl.textContent = totalPagosHoy + ' pagos hoy';
+    var av = rnd(AVATARS);
+    var ciudad = rnd(CIUDADES);
+    var rango = rnd(RANGOS);
+    var ahora = new Date();
+    var hora = ahora.getHours().toString().padStart(2,'0')+':'+ahora.getMinutes().toString().padStart(2,'0');
+    var msgFinal = mensaje ? mensaje.replace('{monto}', fmt(monto)) : '';
+
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:.75rem;align-items:flex-start;animation:slideIn .4s ease';
+    div.innerHTML =
+      '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0">'+av+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.25rem">'+
+          '<span style="color:#fff;font-weight:700;font-size:.85rem">'+nombre+'</span>'+
+          '<span style="font-size:.65rem;color:rgba(255,255,255,.35)">·</span>'+
+          '<span style="font-size:.68rem;color:rgba(255,255,255,.4)">'+ciudad+'</span>'+
+          '<span style="font-size:.65rem;color:rgba(255,255,255,.35)">·</span>'+
+          '<span style="font-size:.68rem;color:rgba(255,255,255,.4)">'+rango+'</span>'+
+          (isReal?'<span style="font-size:.6rem;background:rgba(16,185,129,.2);color:#10b981;padding:1px 6px;border-radius:4px;font-weight:700">REAL</span>':'')+
+          '<span style="font-size:.65rem;color:rgba(255,255,255,.25);margin-left:auto">'+hora+'</span>'+
+        '</div>'+
+        '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:0 12px 12px 12px;padding:.6rem .875rem">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem">'+
+            '<div>'+
+              '<div style="font-size:.72rem;color:rgba(255,255,255,.4);margin-bottom:.15rem">'+concepto+'</div>'+
+              (msgFinal?'<div style="font-size:.82rem;color:rgba(255,255,255,.7);margin-top:.25rem">'+msgFinal+'</div>':'')+
+            '</div>'+
+            '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.4rem;color:#10b981;white-space:nowrap">'+fmt(monto)+'</div>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+
+    feedEl.appendChild(div);
+    feedEl.scrollTop = feedEl.scrollHeight;
+
+    // Mantener máximo 20 mensajes
+    while(feedEl.children.length > 20) feedEl.removeChild(feedEl.firstChild);
+  }
+
+  // Nombres ficticios venezolanos
+  var NOMBRES = ['María G.','Carlos R.','Luisa M.','Andrés P.','Gabriela T.','José L.','Carmen V.','Ricardo H.','Valentina S.','Miguel A.','Patricia N.','Daniel F.','Alejandra C.','Roberto M.','Natalia B.','Fernando G.','Sofía R.','Eduardo L.'];
+
+  function generarPagoAleatorio() {
+    var monto = rndNum(12, 270);
+    var nombre = rnd(NOMBRES);
+    var concepto = rnd(CONCEPTOS);
+    var mensaje = rnd(MENSAJES);
+    crearMensaje(nombre, monto, concepto, mensaje, false);
+  }
+
+  // Poblar con mensajes iniciales
+  var inicial = [
+    {n:'María G.', m:45, c:'Comisión de red N1 💰', msg:'¡Gracias PrimeUnity! {monto} este mes 🔥'},
+    {n:'Carlos R.', m:90, c:'WorkIn mensual ⚡', msg:'El sistema trabaja solo mientras duermo 😴'},
+    {n:'Luisa M.', m:18, c:'Comisión entrada N2 🎯', msg:null},
+    {n:'Andrés P.', m:135, c:'WorkIn mes 2 ⚡', msg:'¡Increíble! {monto} en mi wallet 🙌'},
+    {n:'Gabriela T.', m:45, c:'Recompra de red 🔄', msg:null},
+    {n:'José L.', m:270, c:'WorkIn mensual ⚡', msg:'¡Mi mejor mes! {monto} cobrados 💎'},
+  ];
+  inicial.forEach(function(p){ crearMensaje(p.n, p.m, p.c, p.msg, false); });
+
+  // Auto-generar nuevos pagos cada 8-15 segundos
+  function programarSiguiente() {
+    var delay = rndNum(8000, 15000);
+    setTimeout(function(){
+      generarPagoAleatorio();
+      programarSiguiente();
+    }, delay);
+  }
+  programarSiguiente();
+
+  // Función para agregar pago real desde el formulario
+  window.agregarPagoReal = function() {
+    var nombre = document.getElementById('feed-nombre').value.trim();
+    var monto = parseFloat(document.getElementById('feed-monto').value);
+    var msg = document.getElementById('feed-msg').value.trim();
+    if (!nombre) { alert('Escribe un nombre'); return; }
+    if (!monto || monto < 1) { alert('Escribe un monto válido'); return; }
+    crearMensaje(nombre, monto, '✅ Pago verificado', msg||null, true);
+    document.getElementById('feed-nombre').value = '';
+    document.getElementById('feed-monto').value = '';
+    document.getElementById('feed-msg').value = '';
+  };
+
+  // Estilo de animación
+  var style = document.createElement('style');
+  style.textContent = '@keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}';
+  document.head.appendChild(style);
+})();
+</script>
+
 <section class="cta-section" id="cta">
   <div class="container">
     <div class="reveal">
